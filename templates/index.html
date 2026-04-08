@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trending Bot — {{ date }}</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+    <header>
+        <h1>AI Trending Bot</h1>
+        <nav class="date-nav">
+            <span>{{ date }}</span>
+        </nav>
+    </header>
+    <main>
+        <div class="digest-panel">
+            <h2>Today's Digest ({{ items|length }} items)</h2>
+            <input type="text" id="search" placeholder="Search items..." class="search-box">
+            {% for item in items %}
+            <div class="item-card {% if item.slug in deep_dive_slugs %}has-deep-dive{% endif %}" data-search="{{ item.title|lower }} {{ item.llm_summary|lower }}">
+                <div class="item-header">
+                    <a href="{% if item.slug in deep_dive_slugs %}{{ item.slug }}.html{% else %}{{ item.url }}{% endif %}" class="item-title">{{ item.title }}</a>
+                    <span class="score">{{ item.interest_score }}/10</span>
+                </div>
+                <p class="item-summary">{{ item.llm_summary }}</p>
+                <div class="badges">
+                    {% for source in item.sources %}
+                    <span class="badge badge-{{ source }}">{{ source }}</span>
+                    {% endfor %}
+                    {% if item.slug in deep_dive_slugs %}
+                    <span class="badge badge-deep-dive">DEEP DIVE</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+    <script>
+        document.getElementById('search').addEventListener('input', function(e) {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.item-card').forEach(card => {
+                card.style.display = card.dataset.search.includes(q) ? '' : 'none';
+            });
+        });
+    </script>
+</body>
+</html>

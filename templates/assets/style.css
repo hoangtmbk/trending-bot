@@ -1,0 +1,27 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.6; }
+header { background: #161b22; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; }
+header h1 { color: #58a6ff; font-size: 1.2rem; }
+header h1 a { color: #58a6ff; text-decoration: none; }
+.date-nav { color: #8b949e; }
+main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+.search-box { width: 100%; padding: 0.5rem; margin-bottom: 1rem; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 0.9rem; }
+.item-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 1rem; margin-bottom: 0.5rem; }
+.item-card.has-deep-dive { border-color: #f8514966; }
+.item-header { display: flex; justify-content: space-between; align-items: center; }
+.item-title { color: #58a6ff; text-decoration: none; font-weight: 600; }
+.score { color: #3fb950; font-weight: bold; }
+.item-summary { color: #8b949e; font-size: 0.85rem; margin: 0.3rem 0; }
+.badges { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.badge { padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.7rem; background: #1a1a2e; }
+.badge-github { color: #58a6ff; }
+.badge-reddit { color: #ff6b35; }
+.badge-arxiv { color: #3fb950; }
+.badge-huggingface { color: #ffcc00; }
+.badge-twitter { color: #1da1f2; }
+.badge-hackernews { color: #ff6600; }
+.badge-deep-dive { color: #f85149; background: #f851491a; }
+.deep-dive section { margin: 1.5rem 0; }
+.deep-dive h3 { color: #58a6ff; margin-bottom: 0.5rem; }
+.deep-dive .highlight { background: #1a2e1a; border: 1px solid #3fb95066; border-radius: 6px; padding: 1rem; }
+.source-link { color: #8b949e; font-size: 0.85rem; }

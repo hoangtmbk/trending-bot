@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ report.title }} — AI Trending Bot</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+    <header>
+        <h1><a href="index.html">AI Trending Bot</a></h1>
+        <nav class="date-nav"><span>{{ date }}</span></nav>
+    </header>
+    <main class="deep-dive">
+        <h2>{{ report.title }}</h2>
+        <a href="{{ url }}" class="source-link">{{ url }}</a>
+
+        <section>
+            <h3>What It Is</h3>
+            <p>{{ report.what_it_is }}</p>
+        </section>
+        <section>
+            <h3>Why It's Trending</h3>
+            <p>{{ report.why_trending }}</p>
+        </section>
+        <section>
+            <h3>Pain Point</h3>
+            <p>{{ report.pain_point }}</p>
+        </section>
+        <section>
+            <h3>Gap Analysis</h3>
+            <p>{{ report.gap_analysis }}</p>
+        </section>
+        <section>
+            <h3>Competitors</h3>
+            <ul>
+                {% for comp in report.competitors %}
+                <li>{{ comp }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+        <section class="highlight">
+            <h3>Proposed Solution</h3>
+            <p>{{ report.app_idea }}</p>
+        </section>
+        <section>
+            <h3>Feasibility</h3>
+            <ul>
+                {% for key, value in report.feasibility.items() %}
+                <li><strong>{{ key|title }}:</strong> {{ value }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+    </main>
+</body>
+</html>

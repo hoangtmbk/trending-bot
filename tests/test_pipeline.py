@@ -1,0 +1,111 @@
+import json
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+from run import Pipeline
+from models import RawItem
+
+
+def test_pipeline_creates_data_dir(tmp_path):
+    config = {
+        "scoring": {"digest_size": 5, "deep_dive_count": 2, "min_momentum_score": 0.1,
+                     "freshness_half_life_hours": 48, "cross_platform_boost": {2: 1.5, 3: 2.5, 4: 4.0}},
+        "sources": {"hackernews": {"enabled": True}},
+        "delivery": {"telegram": {"enabled": False}, "dashboard": {"enabled": False}},
+    }
+    pipeline = Pipeline(config=config, data_root=tmp_path / "data")
+    assert pipeline.data_dir.parent == tmp_path / "data"
+
+
+def test_pipeline_collect_stage(tmp_path):
+    config = {
+        "scoring": {"digest_size": 5, "deep_dive_count": 2, "min_momentum_score": 0.1,
+                     "freshness_half_life_hours": 48, "cross_platform_boost": {2: 1.5, 3: 2.5, 4: 4.0}},
+        "sources": {"hackernews": {"enabled": True}, "github": {"enabled": False},
+                     "reddit": {"enabled": False}, "arxiv": {"enabled": False},
+                     "huggingface": {"enabled": False}, "twitter": {"enabled": False}},
+        "delivery": {"telegram": {"enabled": False}, "dashboard": {"enabled": False}},
+    }
+    pipeline = Pipeline(config=config, data_root=tmp_path / "data")
+
+    mock_items = [RawItem(title="Test", url="http://test.com", source="hackernews",
+                          description="", metrics={"points": 100}, timestamp="2026-04-08T00:00:00Z")]
+    with patch("run.HackerNewsCollector") as mock_cls:
+        mock_collector = MagicMock()
+        mock_collector.run.return_value = mock_items
+        mock_collector.source_name = "hackernews"
+        mock_cls.return_value = mock_collector
+
+        result = pipeline.stage_collect()
+        assert len(result) >= 1
+
+
+def test_pipeline_full_run_with_mocks(tmp_path):
+    config = {
+        "scoring": {"digest_size": 5, "deep_dive_count": 1, "min_momentum_score": 0.0,
+                     "freshness_half_life_hours": 48, "cross_platform_boost": {2: 1.5, 3: 2.5, 4: 4.0}},
+        "sources": {"hackernews": {"enabled": True}, "github": {"enabled": False},
+                     "reddit": {"enabled": False}, "arxiv": {"enabled": False},
+                     "huggingface": {"enabled": False}, "twitter": {"enabled": False}},
+        "delivery": {"telegram": {"enabled": False}, "dashboard": {"enabled": True, "port": 8080}},
+    }
+
+    mock_items = [
+        RawItem(title=f"AI Project {i}", url=f"http://example.com/{i}", source="hackernews",
+                description=f"Description {i}", metrics={"points": 100 * (5 - i)},
+                timestamp="2026-04-08T00:00:00Z")
+        for i in range(5)
+    ]
+
+    llm_filter_response = {
+        "items": [
+            {"index": 0, "category": "tool", "interest_score": 9,
+             "summary": "Top project", "novel": True, "ai_relevant": True, "deep_dive": True},
+            {"index": 1, "category": "paper", "interest_score": 7,
+             "summary": "Good paper", "novel": True, "ai_relevant": True, "deep_dive": False},
+        ]
+    }
+
+    deep_dive_response = {
+        "what_it_is": "A test project",
+        "why_trending": "Very popular",
+        "pain_point": "Hard problem",
+        "gap_analysis": "Missing features",
+        "competitors": ["Alt1"],
+        "app_idea": "Build something better",
+        "feasibility": {"effort": "2 weeks", "market": "growing", "competition": "low"},
+    }
+
+    with patch("run.HackerNewsCollector") as mock_hn, \
+         patch("scoring.llm_filter.call_claude_json", return_value=llm_filter_response), \
+         patch("analysis.deep_dive.call_claude_json", return_value=deep_dive_response), \
+         patch("analysis.gatherer.requests.get") as mock_get, \
+         patch("reporting.summary.call_claude", return_value="Summary text"):
+
+        def fake_run(data_dir):
+            import json
+            raw_dir = data_dir / "raw"
+            raw_dir.mkdir(parents=True, exist_ok=True)
+            with open(raw_dir / "hackernews.json", "w") as f:
+                json.dump([item.to_dict() for item in mock_items], f)
+            return mock_items
+
+        mock_collector = MagicMock()
+        mock_collector.run.side_effect = fake_run
+        mock_collector.source_name = "hackernews"
+        mock_hn.return_value = mock_collector
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = "# README"
+        mock_resp.json.return_value = {"items": []}
+        mock_get.return_value = mock_resp
+
+        pipeline = Pipeline(config=config, data_root=tmp_path / "data", date_str="2026-04-08")
+        pipeline.run()
+
+        data_dir = tmp_path / "data" / "2026-04-08"
+        assert (data_dir / "raw" / "hackernews.json").exists()
+        assert (data_dir / "scored" / "ranked.json").exists()
+        assert (data_dir / "reports" / "digest.md").exists()
+        assert (data_dir / "reports" / "summary.md").exists()
+        assert (data_dir / "reports" / "dashboard" / "index.html").exists()
