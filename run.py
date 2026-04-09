@@ -11,7 +11,7 @@ from config import load_config, get_env
 from models import RawItem, ScoredItem
 from collectors.hackernews import HackerNewsCollector
 from collectors.github import GitHubCollector
-from collectors.reddit import RedditCollector
+from collectors.reddit import RedditCollector, RedditPublicCollector
 from collectors.arxiv import ArxivCollector
 from collectors.huggingface import HuggingFaceCollector
 from collectors.twitter import TwitterCollector
@@ -69,8 +69,12 @@ class Pipeline:
                     user_agent=os.environ.get("REDDIT_USER_AGENT", "trending-bot/1.0"),
                     subreddits=sources["reddit"].get("subreddits"),
                 ))
-            except EnvironmentError as e:
-                logger.warning(f"Skipping Reddit: {e}")
+            except EnvironmentError:
+                logger.warning("Reddit API credentials not found, using public JSON API fallback")
+                collectors.append(RedditPublicCollector(
+                    user_agent=os.environ.get("REDDIT_USER_AGENT", "trending-bot/1.0"),
+                    subreddits=sources["reddit"].get("subreddits"),
+                ))
 
         if sources.get("arxiv", {}).get("enabled"):
             collectors.append(ArxivCollector(categories=sources["arxiv"].get("categories")))
