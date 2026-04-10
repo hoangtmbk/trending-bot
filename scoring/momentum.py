@@ -22,7 +22,8 @@ def compute_momentum_score(item: RawItem) -> float:
 
     if source == "github":
         stars = m.get("stargazers_count", 0)
-        return stars / max(stars, 100)
+        age_days = m.get("age_days", 365)
+        return stars / max(age_days, 1)
 
     elif source == "reddit":
         score = m.get("score", 0)
