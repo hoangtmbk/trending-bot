@@ -1,6 +1,7 @@
 from __future__ import annotations
 import math
 import logging
+from collections import defaultdict
 from datetime import datetime, timezone
 from models import RawItem
 
@@ -68,3 +69,23 @@ def compute_final_score(
     if num_sources >= 4:
         boost = boost_config.get(4, 4.0)
     return momentum_score * freshness_decay * boost
+
+
+def normalize_by_source(
+    raw_items: list[RawItem],
+    scores: dict[str, float],
+) -> dict[str, float]:
+    """Normalize raw momentum scores to 0-100 percentile rank within each source."""
+    by_source: dict[str, list[RawItem]] = defaultdict(list)
+    for item in raw_items:
+        by_source[item.source].append(item)
+
+    normalized: dict[str, float] = {}
+    for src, items in by_source.items():
+        items.sort(key=lambda x: scores.get(x.url, 0))
+        n = len(items)
+        for i, item in enumerate(items):
+            percentile = (i / max(n - 1, 1)) * 100
+            if item.url not in normalized or percentile > normalized[item.url]:
+                normalized[item.url] = percentile
+    return normalized

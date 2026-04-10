@@ -1,5 +1,5 @@
 from models import RawItem
-from scoring.momentum import compute_momentum_score, compute_final_score
+from scoring.momentum import compute_momentum_score, compute_final_score, normalize_by_source
 
 
 def test_github_momentum_new_repo():
@@ -93,3 +93,53 @@ def test_final_score_decays_with_age():
     old = compute_final_score(1.0, age_hours=96, freshness_half_life=48,
                               num_sources=1, boost_config=boost_config)
     assert fresh > old
+
+
+def test_normalize_by_source_single_source():
+    items = [
+        RawItem(title="low", url="http://a.com", source="github",
+                description="", metrics={}, timestamp=""),
+        RawItem(title="mid", url="http://b.com", source="github",
+                description="", metrics={}, timestamp=""),
+        RawItem(title="high", url="http://c.com", source="github",
+                description="", metrics={}, timestamp=""),
+    ]
+    scores = {"http://a.com": 10, "http://b.com": 50, "http://c.com": 100}
+    result = normalize_by_source(items, scores)
+    assert result["http://a.com"] == 0.0
+    assert result["http://b.com"] == 50.0
+    assert result["http://c.com"] == 100.0
+
+
+def test_normalize_by_source_multiple_sources():
+    items = [
+        RawItem(title="gh1", url="http://gh1.com", source="github",
+                description="", metrics={}, timestamp=""),
+        RawItem(title="gh2", url="http://gh2.com", source="github",
+                description="", metrics={}, timestamp=""),
+        RawItem(title="rd1", url="http://rd1.com", source="reddit",
+                description="", metrics={}, timestamp=""),
+        RawItem(title="rd2", url="http://rd2.com", source="reddit",
+                description="", metrics={}, timestamp=""),
+    ]
+    scores = {
+        "http://gh1.com": 10,
+        "http://gh2.com": 200,
+        "http://rd1.com": 5,
+        "http://rd2.com": 80,
+    }
+    result = normalize_by_source(items, scores)
+    assert result["http://gh1.com"] == 0.0
+    assert result["http://gh2.com"] == 100.0
+    assert result["http://rd1.com"] == 0.0
+    assert result["http://rd2.com"] == 100.0
+
+
+def test_normalize_by_source_single_item():
+    items = [
+        RawItem(title="only", url="http://a.com", source="github",
+                description="", metrics={}, timestamp=""),
+    ]
+    scores = {"http://a.com": 50}
+    result = normalize_by_source(items, scores)
+    assert result["http://a.com"] == 0.0
