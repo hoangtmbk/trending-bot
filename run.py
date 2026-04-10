@@ -3,6 +3,7 @@ import argparse
 import json
 import logging
 import os
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,34 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def select_diverse_top(items: list[ScoredItem], count: int = 30) -> list[ScoredItem]:
+    """Select top items with round-robin source interleaving for diversity."""
+    by_source: dict[str, list[ScoredItem]] = defaultdict(list)
+    for item in items:
+        primary_source = item.sources[0]
+        by_source[primary_source].append(item)
+
+    for src in by_source:
+        by_source[src].sort(key=lambda x: x.final_score, reverse=True)
+
+    selected: list[ScoredItem] = []
+    pointers: dict[str, int] = {src: 0 for src in by_source}
+
+    while len(selected) < count:
+        added_this_round = False
+        for src in sorted(by_source.keys()):
+            if pointers[src] < len(by_source[src]):
+                selected.append(by_source[src][pointers[src]])
+                pointers[src] += 1
+                added_this_round = True
+                if len(selected) >= count:
+                    break
+        if not added_this_round:
+            break
+
+    return selected
 
 
 class Pipeline:

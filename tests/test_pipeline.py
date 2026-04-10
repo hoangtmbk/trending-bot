@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from run import Pipeline
-from models import RawItem
+from run import Pipeline, select_diverse_top
+from models import RawItem, ScoredItem
 
 
 def test_pipeline_creates_data_dir(tmp_path):
@@ -109,3 +109,48 @@ def test_pipeline_full_run_with_mocks(tmp_path):
         assert (data_dir / "reports" / "digest.md").exists()
         assert (data_dir / "reports" / "summary.md").exists()
         assert (data_dir / "reports" / "dashboard" / "index.html").exists()
+
+
+def _make_scored(title, source, final_score):
+    raw = RawItem(title=title, url=f"http://{source}/{title}", source=source,
+                  description="", metrics={}, timestamp="")
+    return ScoredItem(
+        raw_items=[raw], momentum_score=final_score, final_score=final_score,
+        sources=[source], category="", llm_summary="", interest_score=0,
+    )
+
+
+def test_select_diverse_top_interleaves_sources():
+    items = [
+        _make_scored("r1", "reddit", 100),
+        _make_scored("r2", "reddit", 90),
+        _make_scored("r3", "reddit", 80),
+        _make_scored("g1", "github", 70),
+        _make_scored("g2", "github", 60),
+        _make_scored("h1", "hackernews", 50),
+    ]
+    result = select_diverse_top(items, count=6)
+    first_three_sources = {r.sources[0] for r in result[:3]}
+    assert first_three_sources == {"reddit", "github", "hackernews"}
+
+
+def test_select_diverse_top_respects_count():
+    items = [
+        _make_scored("r1", "reddit", 100),
+        _make_scored("r2", "reddit", 90),
+        _make_scored("g1", "github", 80),
+        _make_scored("g2", "github", 70),
+    ]
+    result = select_diverse_top(items, count=3)
+    assert len(result) == 3
+
+
+def test_select_diverse_top_handles_uneven_sources():
+    items = [
+        _make_scored("r1", "reddit", 100),
+        _make_scored("g1", "github", 50),
+        _make_scored("g2", "github", 40),
+        _make_scored("g3", "github", 30),
+    ]
+    result = select_diverse_top(items, count=4)
+    assert len(result) == 4
