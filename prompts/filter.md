@@ -25,5 +25,11 @@ Return JSON in this exact format:
 }
 ```
 
+Source-specific evaluation guidance:
+- **GitHub repos**: Evaluate based on the repo description and what it does. New repos gaining stars quickly are more interesting than established popular repos. Filter out: minor forks, thin wrappers around existing tools, tutorial/educational repos, awesome-lists, and repos that are popular but not novel.
+- **Reddit/HackerNews posts**: Evaluate based on the linked content, not the discussion engagement alone. High upvotes does not automatically mean high quality or novelty.
+- **arXiv papers**: Evaluate based on novelty of approach and potential practical impact. Prefer papers with new techniques over incremental improvements.
+- **HuggingFace models**: Evaluate based on capability, architecture novelty, or benchmark results. Filter out minor fine-tunes of existing models.
+
 Items to evaluate:
 {items_json}
