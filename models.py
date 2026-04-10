@@ -36,6 +36,7 @@ class ScoredItem:
     category: str
     llm_summary: str
     interest_score: int
+    normalized_score: float = 0.0
 
     @property
     def title(self) -> str:
@@ -55,6 +56,7 @@ class ScoredItem:
             "url": self.url,
             "description": self.description,
             "momentum_score": self.momentum_score,
+            "normalized_score": self.normalized_score,
             "final_score": self.final_score,
             "sources": self.sources,
             "category": self.category,

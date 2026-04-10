@@ -48,6 +48,32 @@ def test_scored_item_title_uses_first_raw():
     assert scored.title == "First Title"
 
 
+def test_scored_item_normalized_score_defaults():
+    raw = RawItem.from_dict({
+        "title": "Test", "url": "http://a.com", "source": "github",
+        "description": "", "metrics": {}, "timestamp": "2026-04-08T00:00:00Z",
+    })
+    scored = ScoredItem(
+        raw_items=[raw], momentum_score=1.0, final_score=0.6,
+        sources=["github"], category="tool", llm_summary="", interest_score=5,
+    )
+    assert scored.normalized_score == 0.0
+
+
+def test_scored_item_normalized_score_in_to_dict():
+    raw = RawItem.from_dict({
+        "title": "Test", "url": "http://a.com", "source": "github",
+        "description": "", "metrics": {}, "timestamp": "2026-04-08T00:00:00Z",
+    })
+    scored = ScoredItem(
+        raw_items=[raw], momentum_score=1.0, final_score=0.6,
+        sources=["github"], category="tool", llm_summary="", interest_score=5,
+        normalized_score=75.0,
+    )
+    d = scored.to_dict()
+    assert d["normalized_score"] == 75.0
+
+
 def test_analysis_report_to_dict():
     report = AnalysisReport(
         slug="agentkit-v2",
