@@ -85,8 +85,13 @@ class Pipeline:
         if sources.get("github", {}).get("enabled"):
             try:
                 token = get_env("GITHUB_TOKEN")
-                topics = sources["github"].get("topics")
-                collectors.append(GitHubCollector(token=token, topics=topics))
+                gh_cfg = sources["github"]
+                collectors.append(GitHubCollector(
+                    token=token,
+                    topics=gh_cfg.get("topics"),
+                    min_stars_new=gh_cfg.get("min_stars_new_repo", 20),
+                    min_stars_established=gh_cfg.get("min_stars_established", 500),
+                ))
             except EnvironmentError as e:
                 logger.warning(f"Skipping GitHub: {e}")
 

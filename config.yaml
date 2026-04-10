@@ -14,6 +14,8 @@ scoring:
 sources:
   github:
     enabled: true
+    min_stars_new_repo: 20
+    min_stars_established: 500
     topics:
       - ai
       - llm
