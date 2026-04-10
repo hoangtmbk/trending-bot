@@ -16,7 +16,7 @@ from collectors.reddit import RedditCollector, RedditPublicCollector
 from collectors.arxiv import ArxivCollector
 from collectors.huggingface import HuggingFaceCollector
 from collectors.twitter import TwitterCollector
-from scoring.momentum import compute_momentum_score, compute_final_score
+from scoring.momentum import compute_momentum_score, compute_final_score, normalize_by_source
 from scoring.dedup import deduplicate
 from scoring.llm_filter import run_llm_filter
 from analysis.deep_dive import run_deep_dives
@@ -139,16 +139,28 @@ class Pipeline:
         logger.info("=== Stage 2: Score & Rank ===")
         scoring_cfg = self.config["scoring"]
 
+        # 1. Compute raw momentum per RawItem
+        raw_scores: dict[str, float] = {}
+        for item in raw_items:
+            score = compute_momentum_score(item)
+            if item.url not in raw_scores or score > raw_scores[item.url]:
+                raw_scores[item.url] = score
+
+        # 2. Normalize within each source (percentile rank)
+        normalized = normalize_by_source(raw_items, raw_scores)
+
+        # 3. Deduplicate
         groups = deduplicate(raw_items)
 
+        # 4. Build ScoredItems with normalized scores
         scored_items = []
         for group in groups:
-            scores = [compute_momentum_score(item) for item in group]
-            best_score = max(scores)
+            best_norm = max(normalized.get(item.url, 0) for item in group)
+            best_raw = max(raw_scores.get(item.url, 0) for item in group)
             sources = list({item.source for item in group})
             age_hours = 24.0
             final = compute_final_score(
-                momentum_score=best_score,
+                momentum_score=best_norm,
                 age_hours=age_hours,
                 freshness_half_life=scoring_cfg["freshness_half_life_hours"],
                 num_sources=len(sources),
@@ -156,7 +168,8 @@ class Pipeline:
             )
             scored_items.append(ScoredItem(
                 raw_items=group,
-                momentum_score=best_score,
+                momentum_score=best_raw,
+                normalized_score=best_norm,
                 final_score=final,
                 sources=sources,
                 category="",
@@ -166,9 +179,9 @@ class Pipeline:
 
         min_score = scoring_cfg["min_momentum_score"]
         scored_items = [s for s in scored_items if s.momentum_score >= min_score]
-        scored_items.sort(key=lambda x: x.final_score, reverse=True)
 
-        top_items = scored_items[:30]
+        # 5. Diverse top-30 selection (round-robin across sources)
+        top_items = select_diverse_top(scored_items, count=30)
         digest, deep_dives = run_llm_filter(
             top_items,
             digest_size=scoring_cfg["digest_size"],

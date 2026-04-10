@@ -154,3 +154,46 @@ def test_select_diverse_top_handles_uneven_sources():
     ]
     result = select_diverse_top(items, count=4)
     assert len(result) == 4
+
+
+def test_pipeline_score_includes_github_items(tmp_path):
+    """GitHub items should appear in the ranked output after normalization + diversity."""
+    config = {
+        "scoring": {"digest_size": 5, "deep_dive_count": 2, "min_momentum_score": 0.0,
+                     "freshness_half_life_hours": 48, "cross_platform_boost": {2: 1.5, 3: 2.5, 4: 4.0}},
+        "sources": {},
+        "delivery": {"telegram": {"enabled": False}, "dashboard": {"enabled": False}},
+    }
+    pipeline = Pipeline(config=config, data_root=tmp_path / "data")
+
+    raw_items = [
+        RawItem(title="Big AI News", url="http://reddit.com/1", source="reddit",
+                description="Important", metrics={"score": 5000},
+                timestamp="2026-04-09T01:00:00Z"),
+        RawItem(title="Another AI Post", url="http://reddit.com/2", source="reddit",
+                description="Also important", metrics={"score": 3000},
+                timestamp="2026-04-09T01:00:00Z"),
+        RawItem(title="New agent framework", url="http://github.com/1", source="github",
+                description="Cool new tool", metrics={"stargazers_count": 500, "age_days": 3},
+                timestamp="2026-04-09T00:00:00Z"),
+        RawItem(title="ML compiler", url="http://github.com/2", source="github",
+                description="Fast ML compiler", metrics={"stargazers_count": 200, "age_days": 5},
+                timestamp="2026-04-09T00:00:00Z"),
+    ]
+
+    llm_filter_response = {
+        "items": [
+            {"index": i, "category": "tool", "interest_score": 8,
+             "summary": f"Item {i}", "novel": True, "ai_relevant": True, "deep_dive": False}
+            for i in range(4)
+        ]
+    }
+
+    with patch("scoring.llm_filter.call_claude_json", return_value=llm_filter_response):
+        digest, _ = pipeline.stage_score(raw_items)
+
+    sources_in_digest = set()
+    for item in digest:
+        sources_in_digest.update(item.sources)
+    assert "github" in sources_in_digest, "GitHub items should appear in digest after normalization"
+    assert "reddit" in sources_in_digest
