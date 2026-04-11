@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Topics — TrendBot{% endblock %}
+{% block content %}
+<h1 style="margin: 20px 0;">Topics</h1>
+{% for topic in topics %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between;">
+        <div>
+            <strong>{{ topic.name }}</strong>
+            <span class="meta"> · {{ topic.item_count }} items</span>
+        </div>
+        <div class="meta">weight: {{ "%.1f"|format(topic.weight) }}</div>
+    </div>
+</div>
+{% endfor %}
+{% if not topics %}
+<p class="meta">No topics yet. Track topics via Telegram or the API.</p>
+{% endif %}
+{% endblock %}

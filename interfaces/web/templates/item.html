@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title[:60] }} — TrendBot{% endblock %}
+{% block content %}
+<div style="margin: 20px 0;">
+    <a href="/" class="btn btn-secondary">← Back</a>
+</div>
+<h1>{{ item.title }}</h1>
+<div class="meta" style="margin: 10px 0;">
+    <span class="badge badge-{{ item.source }}">{{ item.source }}</span>
+    Score: <span class="score" style="font-size: 16px;">{{ "%.0f"|format(item.normalized_score) }}</span>
+    · Seen {{ item.times_seen }}x
+    · First seen: {{ item.first_seen[:10] }}
+    {% if item.url %} · <a href="{{ item.url }}" target="_blank">↗ source</a>{% endif %}
+</div>
+{% if item.description %}
+<div class="card" style="margin-top: 16px;">
+    <p>{{ item.description[:500] }}</p>
+</div>
+{% endif %}
+{% for analysis in analyses %}
+<div class="card" style="margin-top: 16px;">
+    <h3>{{ analysis.analysis_type | replace('_', ' ') | title }}</h3>
+    {% if analysis.content %}
+    {% for key, value in analysis.content.items() %}
+    <p style="margin-top: 8px;"><strong>{{ key | replace('_', ' ') | title }}:</strong>
+    {% if value is string %}{{ value }}{% elif value is iterable %}{{ value | join(', ') }}{% else %}{{ value }}{% endif %}
+    </p>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endfor %}
+{% if scores %}
+<div class="card" style="margin-top: 16px;">
+    <h3>Score History</h3>
+    {% for s in scores %}
+    <div class="meta">{{ s.recorded_at[:16] }} — Momentum: {{ "%.2f"|format(s.momentum_score) }} · Normalized: {{ "%.0f"|format(s.normalized_score) }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

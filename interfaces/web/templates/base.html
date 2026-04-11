@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TrendBot{% endblock %}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        nav { background: #1e293b; padding: 16px 20px; border-bottom: 1px solid #334155; }
+        nav a { color: #94a3b8; text-decoration: none; margin-right: 20px; font-size: 14px; }
+        nav a:hover, nav a.active { color: #f1f5f9; }
+        nav .brand { color: #f1f5f9; font-weight: 700; font-size: 18px; }
+        h1, h2, h3 { color: #f1f5f9; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+        .card:hover { border-color: #475569; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-github { background: #21262d; color: #f0883e; }
+        .badge-reddit { background: #1a1a2e; color: #ff4500; }
+        .badge-arxiv { background: #1a1a2e; color: #b31b1b; }
+        .badge-huggingface { background: #1a1a2e; color: #ffd21e; }
+        .badge-hackernews { background: #1a1a2e; color: #ff6600; }
+        .score { font-size: 24px; font-weight: 700; color: #22d3ee; }
+        .meta { color: #94a3b8; font-size: 13px; }
+        .btn { display: inline-block; padding: 6px 16px; border-radius: 6px; font-size: 13px; text-decoration: none; cursor: pointer; border: none; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        a { color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <nav>
+        <span class="brand">TrendBot</span>
+        <a href="/">Dashboard</a>
+        <a href="/topics">Topics</a>
+    </nav>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

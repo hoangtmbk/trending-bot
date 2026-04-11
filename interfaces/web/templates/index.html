@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}TrendBot — Dashboard{% endblock %}
+{% block content %}
+<h1 style="margin: 20px 0;">Trending Items</h1>
+<div id="items">
+{% for item in items %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div style="flex: 1;">
+            <a href="/item/{{ item.id }}" style="font-size: 16px; font-weight: 600;">{{ item.title[:100] }}</a>
+            <div class="meta" style="margin-top: 4px;">
+                <span class="badge badge-{{ item.source }}">{{ item.source }}</span>
+                Seen {{ item.times_seen }}x
+                {% if item.url %} · <a href="{{ item.url }}" target="_blank">↗ source</a>{% endif %}
+            </div>
+        </div>
+        <div class="score">{{ "%.0f"|format(item.normalized_score) }}</div>
+    </div>
+</div>
+{% endfor %}
+{% if not items %}
+<p class="meta">No items found. Run the scouts to start collecting data.</p>
+{% endif %}
+</div>
+{% endblock %}
