@@ -144,3 +144,76 @@ def test_score_history_ordered_by_time(db):
     assert len(history) == 2
     assert history[0]["momentum_score"] == 0.5
     assert history[1]["momentum_score"] == 0.9
+
+
+# -- Task Queue --
+
+def test_enqueue_task(db):
+    task_id = enqueue_task(db, agent_type="deep_diver",
+                           payload={"item_id": 1, "url": "https://a.com"})
+    assert task_id is not None
+    tasks = get_pending_tasks(db)
+    assert len(tasks) == 1
+    assert tasks[0]["agent_type"] == "deep_diver"
+    assert json.loads(tasks[0]["payload"]) == {"item_id": 1, "url": "https://a.com"}
+
+
+def test_claim_next_task(db):
+    enqueue_task(db, agent_type="deep_diver", payload={"url": "https://a.com"})
+    task = claim_next_task(db)
+    assert task is not None
+    assert task["status"] == "pending"  # returned before status update visible
+    # verify it's now running in DB
+    with db.connect() as conn:
+        row = conn.execute("SELECT status FROM task_queue WHERE id=?",
+                           (task["id"],)).fetchone()
+    assert row["status"] == "running"
+
+
+def test_claim_next_task_filters_by_agent_type(db):
+    enqueue_task(db, agent_type="deep_diver", payload={"a": 1})
+    enqueue_task(db, agent_type="topic_tracker", payload={"b": 2})
+    task = claim_next_task(db, agent_type="topic_tracker")
+    assert task is not None
+    assert task["agent_type"] == "topic_tracker"
+
+
+def test_claim_next_task_returns_none_when_empty(db):
+    task = claim_next_task(db)
+    assert task is None
+
+
+def test_claim_next_task_respects_priority(db):
+    enqueue_task(db, agent_type="deep_diver", payload={"low": True}, priority=0)
+    enqueue_task(db, agent_type="deep_diver", payload={"high": True}, priority=10)
+    task = claim_next_task(db)
+    assert json.loads(task["payload"]) == {"high": True}
+
+
+def test_complete_task(db):
+    task_id = enqueue_task(db, agent_type="deep_diver", payload={})
+    claim_next_task(db)
+    complete_task(db, task_id, result={"status": "done"})
+    with db.connect() as conn:
+        row = conn.execute("SELECT * FROM task_queue WHERE id=?", (task_id,)).fetchone()
+    assert row["status"] == "completed"
+    assert json.loads(row["result"]) == {"status": "done"}
+    assert row["completed_at"] is not None
+
+
+def test_fail_task(db):
+    task_id = enqueue_task(db, agent_type="deep_diver", payload={})
+    claim_next_task(db)
+    fail_task(db, task_id, error="Connection timeout")
+    with db.connect() as conn:
+        row = conn.execute("SELECT * FROM task_queue WHERE id=?", (task_id,)).fetchone()
+    assert row["status"] == "failed"
+    assert row["error"] == "Connection timeout"
+
+
+def test_completed_tasks_not_in_pending(db):
+    task_id = enqueue_task(db, agent_type="deep_diver", payload={})
+    claim_next_task(db)
+    complete_task(db, task_id, result={})
+    pending = get_pending_tasks(db)
+    assert len(pending) == 0
