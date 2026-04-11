@@ -59,3 +59,30 @@ delivery:
     enabled: true
     port: 8080
     serve_dir: dashboard_out
+
+orchestrator:
+  db_path: trendbot.db
+  task_poll_interval: 2
+  agents:
+    github_scout:
+      schedule: "0 */4 * * *"
+    reddit_scout:
+      schedule: "0 */4 * * *"
+    arxiv_scout:
+      schedule: "0 */12 * * *"
+    huggingface_scout:
+      schedule: "0 */6 * * *"
+    hackernews_scout:
+      schedule: "0 */4 * * *"
+    twitter_scout:
+      schedule: "0 */4 * * *"
+    scorer:
+      schedule: "on_demand"
+    filter:
+      schedule: "on_demand"
+    dot_connector:
+      schedule: "0 3 * * *"
+    deep_diver:
+      schedule: "on_demand"
+    topic_tracker:
+      schedule: "0 4 * * 1"

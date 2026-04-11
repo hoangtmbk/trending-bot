@@ -17,6 +17,11 @@ DEFAULTS = {
         "telegram": {"enabled": False},
         "dashboard": {"enabled": True, "port": 8080, "serve_dir": "dashboard_out"},
     },
+    "orchestrator": {
+        "db_path": "trendbot.db",
+        "task_poll_interval": 2,
+        "agents": {},
+    },
 }
 
 
