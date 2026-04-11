@@ -16,7 +16,7 @@ class HuggingFaceCollector(BaseCollector):
 
         try:
             models = api.list_models(
-                sort="trending",
+                sort="trending_score",
                 limit=50,
             )
             for model in models:

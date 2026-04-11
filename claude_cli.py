@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def call_claude(prompt: str, retries: int = 2, model: str | None = None) -> str:
-    cmd = ["claude", "-p", prompt, "--no-input"]
+    cmd = ["claude", "-p", prompt]
     if model:
         cmd.extend(["--model", model])
 
