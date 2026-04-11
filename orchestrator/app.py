@@ -46,7 +46,8 @@ class Application:
             try:
                 processed = self.dispatcher.process_one()
                 if not processed:
-                    time.sleep(2)
+                    poll_interval = self.config.get("orchestrator", {}).get("task_poll_interval", 2)
+                    time.sleep(poll_interval)
             except Exception:
                 logger.exception("Dispatcher error")
                 time.sleep(5)

@@ -62,6 +62,13 @@ def get_item_by_url(db: Database, url: str) -> dict | None:
     return dict(row) if row else None
 
 
+_ALLOWED_ORDER_COLUMNS = {
+    "last_seen", "first_seen", "normalized_score", "momentum_score",
+    "times_seen", "id", "title", "source",
+}
+_ALLOWED_DIRECTIONS = {"ASC", "DESC"}
+
+
 def get_items(
     db: Database,
     source: str | None = None,
@@ -70,6 +77,12 @@ def get_items(
     limit: int | None = None,
     order_by: str = "last_seen DESC",
 ) -> list[dict]:
+    parts = order_by.strip().split()
+    col = parts[0] if parts else "last_seen"
+    direction = parts[1].upper() if len(parts) > 1 else "DESC"
+    if col not in _ALLOWED_ORDER_COLUMNS or direction not in _ALLOWED_DIRECTIONS:
+        col, direction = "last_seen", "DESC"
+
     query = "SELECT * FROM items WHERE 1=1"
     params: list = []
 
@@ -83,7 +96,7 @@ def get_items(
         query += " AND last_seen >= ?"
         params.append(since)
 
-    query += f" ORDER BY {order_by}"
+    query += f" ORDER BY {col} {direction}"
 
     if limit:
         query += " LIMIT ?"

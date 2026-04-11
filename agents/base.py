@@ -16,6 +16,7 @@ class AgentContext:
     db: Database
     event_bus: EventBus
     config: dict
+    payload: dict = field(default_factory=dict)
 
     def emit(self, event: str, data: dict) -> None:
         self.event_bus.emit(event, data)

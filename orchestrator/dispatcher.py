@@ -33,7 +33,8 @@ class TaskDispatcher:
             fail_task(self.db, task_id, f"Unknown agent type: {agent_type}")
             return True
 
-        ctx = AgentContext(db=self.db, event_bus=self.event_bus, config=self.config)
+        payload = json.loads(task["payload"]) if task["payload"] else {}
+        ctx = AgentContext(db=self.db, event_bus=self.event_bus, config=self.config, payload=payload)
         result = agent.run(ctx)
 
         if result.success:
