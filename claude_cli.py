@@ -16,9 +16,17 @@ def call_claude(prompt: str, retries: int = 2, model: str | None = None) -> str:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode == 0:
             return result.stdout.strip()
-        logger.warning(f"Claude CLI failed (attempt {attempt + 1}): {result.stderr}")
+        logger.warning(
+            f"Claude CLI failed (attempt {attempt + 1}): "
+            f"rc={result.returncode} "
+            f"stdout={result.stdout.strip()!r} "
+            f"stderr={result.stderr.strip()!r}"
+        )
 
-    raise RuntimeError(f"Claude CLI failed after {retries} attempts: {result.stderr}")
+    raise RuntimeError(
+        f"Claude CLI failed after {retries} attempts: "
+        f"rc={result.returncode} stdout={result.stdout.strip()!r} stderr={result.stderr.strip()!r}"
+    )
 
 
 def call_claude_json(prompt: str, retries: int = 2, model: str | None = None) -> dict:

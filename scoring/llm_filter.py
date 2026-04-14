@@ -76,4 +76,7 @@ def _fallback(
     sorted_items = sorted(items, key=lambda x: x.final_score, reverse=True)
     digest = sorted_items[:digest_size]
     deep_dives = sorted_items[:deep_dive_count]
+    for item in digest:
+        item.interest_score = -1
+        item.llm_summary = "[LLM filter unavailable — ranked by raw momentum]"
     return digest, deep_dives

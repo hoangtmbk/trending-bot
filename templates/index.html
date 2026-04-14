@@ -21,7 +21,7 @@
             <div class="item-card {% if item.slug in deep_dive_slugs %}has-deep-dive{% endif %}" data-search="{{ item.title|lower }} {{ item.llm_summary|lower }}">
                 <div class="item-header">
                     <a href="{% if item.slug in deep_dive_slugs %}{{ item.slug }}.html{% else %}{{ item.url }}{% endif %}" class="item-title">{{ item.title }}</a>
-                    <span class="score">{{ item.interest_score }}/10</span>
+                    <span class="score">{% if item.interest_score < 0 %}—/10{% else %}{{ item.interest_score }}/10{% endif %}</span>
                 </div>
                 <p class="item-summary">{{ item.llm_summary }}</p>
                 <div class="badges">
