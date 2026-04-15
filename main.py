@@ -79,7 +79,6 @@ def _configure_logging(log_dir: Path | str = "logs") -> None:
     root.addHandler(file_handler)
 
 
-_configure_logging(Path(__file__).parent / "logs")
 logger = logging.getLogger("trendbot")
 
 
@@ -204,6 +203,7 @@ def _run_now(app: Application) -> None:
 
 
 def main() -> None:
+    _configure_logging(Path(__file__).parent / "logs")
     parser = argparse.ArgumentParser(description="TrendBot — personal AI trends assistant")
     parser.add_argument("--run-now", action="store_true",
                         help="Immediately run all scouts + scoring (first run)")
