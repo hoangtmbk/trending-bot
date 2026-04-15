@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import logging.handlers
 import threading
 import time
 from pathlib import Path
@@ -39,11 +40,46 @@ from agents.researchers.deep_diver import DeepDiver
 from agents.researchers.topic_tracker import TopicTracker
 from agents.researchers.competitor_watch import CompetitorWatcher
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
-    datefmt="%H:%M:%S",
-)
+def _configure_logging(log_dir: Path | str = "logs") -> None:
+    """Configure root logger with stream + rotating file handler.
+
+    Idempotent: re-calling replaces the rotating file handler so tests
+    and interactive reloads don't pile up duplicates.
+    """
+    log_dir = Path(log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+
+    fmt = logging.Formatter(
+        fmt="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.handlers.RotatingFileHandler)
+               for h in root.handlers):
+        stream = logging.StreamHandler()
+        stream.setFormatter(fmt)
+        root.addHandler(stream)
+
+    # Remove any existing rotating file handlers (idempotency) before adding a fresh one.
+    for h in list(root.handlers):
+        if isinstance(h, logging.handlers.RotatingFileHandler):
+            root.removeHandler(h)
+            h.close()
+
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_dir / "trendbot.log",
+        maxBytes=50 * 1024 * 1024,  # 50 MB
+        backupCount=5,
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(fmt)
+    root.addHandler(file_handler)
+
+
+_configure_logging(Path(__file__).parent / "logs")
 logger = logging.getLogger("trendbot")
 
 
