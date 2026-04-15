@@ -294,3 +294,25 @@ class TestHtmlPages:
         assert resp.status_code == 200
         assert "text/html" in resp.headers["content-type"]
         assert "Topics" in resp.text
+
+
+# ── GET /api/health ──
+
+class TestApiHealth:
+    def test_returns_ok_true(self, client):
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ok"] is True
+
+    def test_includes_version_field(self, client):
+        resp = client.get("/api/health")
+        body = resp.json()
+        assert "version" in body
+        assert isinstance(body["version"], str)
+
+    def test_does_not_require_seeded_db(self, client):
+        # Same fixture as the other tests — uses an empty db via tmp_path.
+        # Health must not read from the schema.
+        resp = client.get("/api/health")
+        assert resp.status_code == 200

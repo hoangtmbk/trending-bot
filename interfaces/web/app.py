@@ -23,6 +23,14 @@ def create_app(db: Database, config: dict) -> FastAPI:
 
     # ── API Endpoints ──
 
+    @app.get("/api/health")
+    async def api_health():
+        import os
+        return {
+            "ok": True,
+            "version": os.environ.get("TRENDBOT_GIT_SHA", "dev"),
+        }
+
     @app.get("/api/items")
     async def api_items(
         source: str | None = None,
