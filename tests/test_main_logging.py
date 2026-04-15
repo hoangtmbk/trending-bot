@@ -46,3 +46,30 @@ def test_configure_logging_creates_log_dir_if_missing(tmp_path):
     _configure_logging(log_dir)
 
     assert log_dir.exists() and log_dir.is_dir()
+
+
+def test_configure_logging_silences_httpx_at_info(tmp_path):
+    """httpx logs request URLs at INFO level, which leaks the Telegram
+    bot token (URL contains /bot<TOKEN>/...). The token is effectively
+    a credential, so suppress httpx to WARNING+ to keep stdout clean.
+    """
+    from main import _configure_logging
+
+    _configure_logging(tmp_path / "logs")
+
+    httpx_logger = logging.getLogger("httpx")
+    # WARNING is int 30; INFO is 20. Effective level must be >= WARNING.
+    assert httpx_logger.getEffectiveLevel() >= logging.WARNING, (
+        f"httpx logger is at {logging.getLevelName(httpx_logger.getEffectiveLevel())}, "
+        "which would leak Telegram bot tokens in logged URLs"
+    )
+
+
+def test_configure_logging_silences_httpcore_at_info(tmp_path):
+    """httpcore (httpx's underlying transport) also logs request URLs."""
+    from main import _configure_logging
+
+    _configure_logging(tmp_path / "logs")
+
+    httpcore_logger = logging.getLogger("httpcore")
+    assert httpcore_logger.getEffectiveLevel() >= logging.WARNING

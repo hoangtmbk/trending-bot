@@ -78,6 +78,12 @@ def _configure_logging(log_dir: Path | str = "logs") -> None:
     file_handler.setFormatter(fmt)
     root.addHandler(file_handler)
 
+    # Silence HTTP client loggers — they log full request URLs at INFO,
+    # which leaks the Telegram bot token (bot<TOKEN>/getUpdates, etc.)
+    # and other secrets embedded in URLs.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 
 logger = logging.getLogger("trendbot")
 
