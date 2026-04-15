@@ -4,36 +4,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Nightly pipeline that scans 6 platforms (GitHub, Reddit, arXiv, HuggingFace, Twitter, Hacker News) for rising AI topics, scores by momentum, deduplicates across sources, filters with Claude CLI, runs deep-dive analysis on top items, and delivers via Telegram + static HTML dashboard. Runs at 2:00 AM UTC via cron.
+Always-on personal AI-trends assistant. A single `main.py` process runs
+an APScheduler-driven orchestrator, a FastAPI dashboard, and a
+bidirectional Telegram bot; agents (scouts/analysts/researchers) fire
+on their own cron schedules and persist to `trendbot.db`. Canonical
+runtime is a Docker container on `lab-cam-Precision-3630-Tower`
+(192.168.1.10). The older `run.py` batch pipeline is retained for
+reference but is no longer scheduled.
 
 ## Commands
 
 ```bash
-# Setup
+# Local dev (laptop)
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # then fill in API keys
-
-# Run full pipeline
-python run.py
-
-# Run a single stage
-python run.py --stage collect
-python run.py --stage score
-python run.py --stage analyze
-python run.py --stage report
-python run.py --stage deliver
-
-# Reprocess a specific date
-python run.py --stage score --date 2026-04-08
+cp .env.example .env   # fill in API keys
+python main.py         # orchestrator + dashboard + telegram
+python main.py --no-telegram --run-now   # dry-run a collection cycle
 
 # Tests
 pytest tests/
-pytest tests/test_scoring.py -v          # single file
-pytest tests/test_scoring.py::test_name  # single test
+pytest tests/test_web.py -v           # single file
+pytest tests/test_web.py::TestApiHealth -v   # single class
+
+# Production deploy (lab-cam, 192.168.1.10)
+ssh 192.168.1.10
+cd ~/workspace/trending-bot && git pull
+cd deploy && docker compose build && docker compose up -d
+docker compose logs -f trending-bot --tail 50
+
+# Legacy (not scheduled, kept for reproducing old reports)
+python run.py --stage collect
+python run.py --date 2026-04-08
 ```
 
 ## Architecture
+
+**Two parallel architectures live in this repo.** `main.py` (the canonical
+always-on orchestrator) and `run.py` (the legacy 5-stage batch pipeline)
+share the same collectors, scoring, and `claude_cli.py` module but have
+different data stores — `main.py` uses SQLite (`trendbot.db`), `run.py`
+uses date-partitioned JSON under `data/YYYY-MM-DD/`. New work should
+target `main.py` and its agent model. `run.py` is documented below for
+reference.
 
 **5-stage sequential pipeline**, each stage reads from disk and writes output for the next:
 
