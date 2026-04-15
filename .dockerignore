@@ -1,0 +1,49 @@
+# VCS
+.git/
+.gitignore
+.gitattributes
+
+# Secrets (never bake into image)
+.env
+.env.*
+!.env.example
+
+# Runtime state (bind-mounted on server)
+data/
+logs/
+trendbot.db
+trendbot.db-wal
+trendbot.db-shm
+
+# Credentials staging (bind-mounted read-only)
+deploy/claude-credentials/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Editor / OS cruft
+.vscode/
+.idea/
+.DS_Store
+
+# Documentation and tests (not needed at runtime)
+docs/
+tests/
+*.md
+!README.md
+
+# Dev screenshots / scratch
+*.png
+.playwright-mcp/
+
+# Superpowers internal state
+.superpowers/
