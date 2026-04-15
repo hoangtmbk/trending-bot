@@ -1,0 +1,25 @@
+services:
+  trending-bot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: trending-bot:local
+    container_name: trending-bot
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      TZ: Asia/Bangkok
+    ports:
+      - "8090:8080"
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+      - ../trendbot.db:/app/trendbot.db
+      - ./claude-credentials/.claude:/mnt/claude-creds:ro
+    user: "1000:1000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
