@@ -200,6 +200,16 @@ def fail_task(db: Database, task_id: int, error: str) -> None:
         conn.commit()
 
 
+def promote_item_to_tracking(db: Database, item_id: int) -> None:
+    """Promote an item from 'new' → 'tracking'. No-op if already tracking/archived/dismissed."""
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE items SET status='tracking' WHERE id=? AND status='new'",
+            (item_id,),
+        )
+        conn.commit()
+
+
 def get_pending_tasks(db: Database, agent_type: str | None = None) -> list[dict]:
     with db.connect() as conn:
         query = "SELECT * FROM task_queue WHERE status='pending'"

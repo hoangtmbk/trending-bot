@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import logging
 from agents.base import BaseAgent, AgentContext, AgentResult
-from db.queries import get_items
+from db.queries import get_items, promote_item_to_tracking
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,10 @@ class RelevanceFilter(BaseAgent):
                         "INSERT OR REPLACE INTO item_topics (item_id, topic_id, confidence) VALUES (?, ?, ?)",
                         (db_item["id"], topic["id"], eval_item.get("interest_score", 5) / 10.0),
                     )
+                conn.execute(
+                    "UPDATE items SET status='tracking' WHERE id=? AND status='new'",
+                    (db_item["id"],),
+                )
                 conn.commit()
             analyzed += 1
 

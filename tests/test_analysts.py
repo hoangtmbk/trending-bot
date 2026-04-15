@@ -296,6 +296,71 @@ class TestRelevanceFilter:
         assert "No items to filter" in result.message
         mock_llm.assert_not_called()
 
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_filter_promotes_passing_items_to_tracking(self, mock_llm, db, event_bus):
+        """Passed items promoted to 'tracking'; dismissed items are NOT promoted."""
+        from agents.analysts.filter import RelevanceFilter
+
+        # Seed 3 items, all start as status='new'
+        ids = []
+        for i, name in enumerate(["passing_1", "passing_2", "dismissed_1"]):
+            item_id = upsert_item(
+                db,
+                url=f"https://github.com/test/{name}",
+                title=name,
+                source="github",
+                description=f"Desc {name}",
+                raw_metrics={"stargazers_count": 100, "forks_count": 10, "age_days": 1},
+                momentum_score=float((i + 1) * 10),
+                normalized_score=float((i + 1) * 20),
+            )
+            ids.append(item_id)
+
+        passing_1_id, passing_2_id, dismissed_1_id = ids
+
+        # Pre-dismiss the third item
+        with db.connect() as conn:
+            conn.execute("UPDATE items SET status='dismissed' WHERE id=?", (dismissed_1_id,))
+            conn.commit()
+
+        # Claude says all three pass — the dismissed_1 should still not be promoted
+        mock_llm.return_value = [
+            {"index": 0, "novel": True, "ai_relevant": True,
+             "category": "framework", "interest_score": 8,
+             "summary": "First passer", "deep_dive": True},
+            {"index": 1, "novel": True, "ai_relevant": True,
+             "category": "tool", "interest_score": 7,
+             "summary": "Second passer", "deep_dive": False},
+            {"index": 2, "novel": True, "ai_relevant": True,
+             "category": "dataset", "interest_score": 6,
+             "summary": "Dismissed but Claude approved", "deep_dive": False},
+        ]
+
+        ctx = AgentContext(
+            db=db, event_bus=event_bus,
+            config={"scoring": {"digest_size": 15, "filter_pool_size": 30}},
+        )
+
+        filt = RelevanceFilter()
+        result = filt.execute(ctx)
+
+        assert result.success is True
+        # All three stored in item_analysis (verdict recorded regardless of status)
+        with db.connect() as conn:
+            analyses = conn.execute(
+                "SELECT item_id FROM item_analysis WHERE analysis_type='filter'"
+            ).fetchall()
+        analysed_ids = {a["item_id"] for a in analyses}
+        assert passing_1_id in analysed_ids
+        assert passing_2_id in analysed_ids
+        assert dismissed_1_id in analysed_ids
+
+        # Status checks
+        from db.queries import get_item_by_id
+        assert get_item_by_id(db, passing_1_id)["status"] == "tracking"
+        assert get_item_by_id(db, passing_2_id)["status"] == "tracking"
+        assert get_item_by_id(db, dismissed_1_id)["status"] == "dismissed"  # NOT promoted
+
 
 # ========== DotConnector ==========
 
