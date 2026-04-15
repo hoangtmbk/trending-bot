@@ -45,9 +45,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 USER appuser
 
 # The dashboard runs on 8080 inside the container; compose publishes to 8090 on the host.
+# Healthcheck is defined in docker-compose.yml (which overrides any Dockerfile HEALTHCHECK).
 EXPOSE 8080
-
-HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -fsS http://localhost:8080/api/health || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

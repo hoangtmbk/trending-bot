@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import logging
+import os
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -25,7 +26,6 @@ def create_app(db: Database, config: dict) -> FastAPI:
 
     @app.get("/api/health")
     async def api_health():
-        import os
         return {
             "ok": True,
             "version": os.environ.get("TRENDBOT_GIT_SHA", "dev"),

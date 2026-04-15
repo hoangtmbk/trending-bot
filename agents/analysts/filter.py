@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import logging
 from agents.base import BaseAgent, AgentContext, AgentResult
-from db.queries import get_items, promote_item_to_tracking
+from db.queries import get_items
 
 logger = logging.getLogger(__name__)
 
