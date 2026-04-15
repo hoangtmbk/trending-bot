@@ -183,7 +183,7 @@ def create_app(db: Database, config: dict) -> FastAPI:
         for item in items:
             if item.get("raw_metrics"):
                 item["raw_metrics"] = json.loads(item["raw_metrics"])
-        return templates.TemplateResponse("index.html", {"request": request, "items": items})
+        return templates.TemplateResponse(request, "index.html", {"items": items})
 
     @app.get("/item/{item_id}", response_class=HTMLResponse)
     async def page_item(request: Request, item_id: int):
@@ -202,8 +202,8 @@ def create_app(db: Database, config: dict) -> FastAPI:
                     a["content"] = json.loads(a["content"])
 
         scores = get_score_history(db, item_id)
-        return templates.TemplateResponse("item.html", {
-            "request": request, "item": item, "analyses": analyses, "scores": scores,
+        return templates.TemplateResponse(request, "item.html", {
+            "item": item, "analyses": analyses, "scores": scores,
         })
 
     @app.get("/topics", response_class=HTMLResponse)
@@ -215,6 +215,6 @@ def create_app(db: Database, config: dict) -> FastAPI:
                 "FROM topics t LEFT JOIN user_interests ui ON t.id = ui.topic_id "
                 "WHERE t.is_active = 1 ORDER BY weight DESC"
             ).fetchall()]
-        return templates.TemplateResponse("topics.html", {"request": request, "topics": topics})
+        return templates.TemplateResponse(request, "topics.html", {"topics": topics})
 
     return app

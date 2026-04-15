@@ -316,3 +316,34 @@ class TestApiHealth:
         # Health must not read from the schema.
         resp = client.get("/api/health")
         assert resp.status_code == 200
+
+
+# ── HTML routes (regression for Starlette 1.0 TemplateResponse signature) ──
+
+class TestHtmlRoutes:
+    def test_home_page_renders_on_empty_db(self, client):
+        # Reproduces the `TypeError: unhashable type: 'dict'` regression
+        # caused by Starlette 1.0's TemplateResponse signature flip.
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "html" in resp.headers.get("content-type", "").lower()
+
+    def test_home_page_renders_with_items(self, seeded_client):
+        resp = seeded_client.get("/")
+        assert resp.status_code == 200
+        assert "html" in resp.headers.get("content-type", "").lower()
+
+    def test_item_detail_renders(self, seeded_client):
+        # seeded_client has 2 items; id 1 should exist.
+        resp = seeded_client.get("/item/1")
+        assert resp.status_code == 200
+        assert "html" in resp.headers.get("content-type", "").lower()
+
+    def test_item_detail_404_for_missing(self, client):
+        resp = client.get("/item/9999")
+        assert resp.status_code == 404
+
+    def test_topics_page_renders_on_empty_db(self, client):
+        resp = client.get("/topics")
+        assert resp.status_code == 200
+        assert "html" in resp.headers.get("content-type", "").lower()
