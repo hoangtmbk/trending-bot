@@ -33,3 +33,12 @@ data/
 
 # Superpowers
 .superpowers/
+
+# Runtime state (bind-mounted on server)
+logs/
+trendbot.db
+trendbot.db-wal
+trendbot.db-shm
+
+# Deploy-time credentials (host staging dir, never in git)
+deploy/claude-credentials/.claude/
