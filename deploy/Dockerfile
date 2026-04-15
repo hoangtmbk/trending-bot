@@ -6,17 +6,22 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1
 
 # System deps: curl for healthcheck, ca-certificates for TLS, git for
-# optional runtime git-sha lookups, nodejs+npm to host the Claude CLI.
+# optional runtime git-sha lookups.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         git \
-        nodejs \
-        npm \
+        gnupg \
  && rm -rf /var/lib/apt/lists/*
 
-# Claude Code CLI — same major as the host, pinned for reproducibility.
+# Node.js 20 LTS from NodeSource (Debian slim ships Node 18 which is too old
+# for recent @anthropic-ai/claude-code releases).
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/*
+
+# Claude Code CLI — pinned for reproducibility.
 RUN npm install -g @anthropic-ai/claude-code@2.1.109
 
 # Non-root user with uid matching `lab-cam` on the server so bind-mounted
