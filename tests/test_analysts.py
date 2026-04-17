@@ -297,6 +297,132 @@ class TestRelevanceFilter:
         mock_llm.assert_not_called()
 
     @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_filter_enqueues_deep_diver_for_flagged_items(self, mock_llm, db, event_bus):
+        """Items with deep_dive=True should produce queued deep_diver tasks."""
+        from agents.analysts.filter import RelevanceFilter
+
+        ids = _seed_items(db, count=3)
+        mock_llm.return_value = [
+            {"index": 0, "novel": True, "ai_relevant": True,
+             "category": "framework", "interest_score": 9,
+             "summary": "Top pick", "deep_dive": True},
+            {"index": 1, "novel": True, "ai_relevant": True,
+             "category": "tool", "interest_score": 7,
+             "summary": "Also worth a look", "deep_dive": True},
+            {"index": 2, "novel": True, "ai_relevant": True,
+             "category": "tool", "interest_score": 4,
+             "summary": "Skip the dive", "deep_dive": False},
+        ]
+
+        ctx = AgentContext(
+            db=db, event_bus=event_bus,
+            config={"scoring": {"deep_dive_count": 5}},
+        )
+
+        result = RelevanceFilter().execute(ctx)
+
+        assert result.success is True
+        assert result.data["deep_dive_enqueued"] == 2
+
+        # Filter ranks items by normalized_score DESC, so index 0 corresponds to
+        # the highest-scored seed (ids[2]) and index 1 to the next (ids[1]).
+        with db.connect() as conn:
+            rows = conn.execute(
+                "SELECT payload FROM task_queue WHERE agent_type='deep_diver' "
+                "AND status='pending' ORDER BY id"
+            ).fetchall()
+        queued_ids = sorted(json.loads(r["payload"])["item_id"] for r in rows)
+        assert queued_ids == sorted([ids[2], ids[1]])
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_filter_caps_deep_dive_enqueues_at_config(self, mock_llm, db, event_bus):
+        from agents.analysts.filter import RelevanceFilter
+
+        _seed_items(db, count=4)
+        mock_llm.return_value = [
+            {"index": i, "novel": True, "ai_relevant": True,
+             "category": "tool", "interest_score": 9 - i,
+             "summary": f"item {i}", "deep_dive": True}
+            for i in range(4)
+        ]
+
+        ctx = AgentContext(
+            db=db, event_bus=event_bus,
+            config={"scoring": {"deep_dive_count": 2}},
+        )
+
+        result = RelevanceFilter().execute(ctx)
+
+        assert result.data["deep_dive_enqueued"] == 2
+        with db.connect() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) c FROM task_queue WHERE agent_type='deep_diver'"
+            ).fetchone()["c"]
+        assert count == 2
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_filter_skips_deep_dive_if_already_analyzed(self, mock_llm, db, event_bus):
+        """If deep_dive analysis already exists for an item, don't enqueue again."""
+        from agents.analysts.filter import RelevanceFilter
+
+        ids = _seed_items(db, count=1)
+        # Pre-existing deep dive for the first item
+        with db.connect() as conn:
+            conn.execute(
+                "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+                "VALUES (?, 'deep_dive', datetime('now'), '{}')",
+                (ids[0],),
+            )
+            conn.commit()
+
+        mock_llm.return_value = [
+            {"index": 0, "novel": True, "ai_relevant": True,
+             "category": "tool", "interest_score": 9,
+             "summary": "x", "deep_dive": True},
+        ]
+
+        ctx = AgentContext(
+            db=db, event_bus=event_bus,
+            config={"scoring": {"deep_dive_count": 5}},
+        )
+        result = RelevanceFilter().execute(ctx)
+
+        assert result.data["deep_dive_enqueued"] == 0
+        with db.connect() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) c FROM task_queue WHERE agent_type='deep_diver'"
+            ).fetchone()["c"]
+        assert count == 0
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_filter_skips_deep_dive_if_task_already_pending(self, mock_llm, db, event_bus):
+        """If a deep_diver task is already pending for an item, don't enqueue a duplicate."""
+        from agents.analysts.filter import RelevanceFilter
+        from db.queries import enqueue_task
+
+        ids = _seed_items(db, count=1)
+        enqueue_task(db, agent_type="deep_diver", payload={"item_id": ids[0]})
+
+        mock_llm.return_value = [
+            {"index": 0, "novel": True, "ai_relevant": True,
+             "category": "tool", "interest_score": 9,
+             "summary": "x", "deep_dive": True},
+        ]
+
+        ctx = AgentContext(
+            db=db, event_bus=event_bus,
+            config={"scoring": {"deep_dive_count": 5}},
+        )
+        result = RelevanceFilter().execute(ctx)
+
+        assert result.data["deep_dive_enqueued"] == 0
+        with db.connect() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) c FROM task_queue WHERE agent_type='deep_diver'"
+            ).fetchone()["c"]
+        assert count == 1  # the pre-existing one, not duplicated
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
     def test_filter_promotes_passing_items_to_tracking(self, mock_llm, db, event_bus):
         """Passed items promoted to 'tracking'; dismissed items are NOT promoted."""
         from agents.analysts.filter import RelevanceFilter

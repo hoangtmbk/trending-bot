@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import logging
 from agents.base import BaseAgent, AgentContext, AgentResult
-from db.queries import get_items
+from db.queries import get_items, enqueue_task
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ class RelevanceFilter(BaseAgent):
         scoring_cfg = ctx.config.get("scoring", {})
         digest_size = scoring_cfg.get("digest_size", 15)
         top_count = scoring_cfg.get("filter_pool_size", 30)
+        deep_dive_cap = scoring_cfg.get("deep_dive_count", 5)
 
         # Get top items by normalized_score
         items = get_items(ctx.db, limit=top_count, order_by="normalized_score DESC")
@@ -34,6 +35,7 @@ class RelevanceFilter(BaseAgent):
 
         # Store analysis results and assign topics
         analyzed = 0
+        deep_dive_candidates: list[tuple[int, dict]] = []  # (item_id, eval_item)
         for eval_item in results:
             idx = eval_item.get("index", -1)
             if idx < 0 or idx >= len(items):
@@ -70,9 +72,54 @@ class RelevanceFilter(BaseAgent):
                 conn.commit()
             analyzed += 1
 
-        ctx.emit("analysis_complete", {"analyzed_count": analyzed})
-        return AgentResult(success=True, message=f"Filtered {analyzed} items",
-                           data={"analyzed_count": analyzed})
+            if eval_item.get("deep_dive"):
+                deep_dive_candidates.append((db_item["id"], eval_item))
+
+        enqueued = self._enqueue_deep_dives(ctx, deep_dive_candidates, deep_dive_cap)
+
+        ctx.emit("analysis_complete", {"analyzed_count": analyzed,
+                                       "deep_dive_enqueued": enqueued})
+        return AgentResult(success=True,
+                           message=f"Filtered {analyzed} items, enqueued {enqueued} deep dives",
+                           data={"analyzed_count": analyzed, "deep_dive_enqueued": enqueued})
+
+    def _enqueue_deep_dives(
+        self, ctx: AgentContext, candidates: list[tuple[int, dict]], cap: int
+    ) -> int:
+        """Enqueue deep_diver tasks for top candidates, respecting cap and skipping
+        items that already have a deep dive analysis or a pending/running task."""
+        if not candidates or cap <= 0:
+            return 0
+
+        ranked = sorted(candidates,
+                        key=lambda c: c[1].get("interest_score", 0),
+                        reverse=True)
+
+        enqueued = 0
+        with ctx.db.connect() as conn:
+            for item_id, _ in ranked:
+                if enqueued >= cap:
+                    break
+                existing_analysis = conn.execute(
+                    "SELECT 1 FROM item_analysis "
+                    "WHERE item_id=? AND analysis_type='deep_dive' LIMIT 1",
+                    (item_id,),
+                ).fetchone()
+                if existing_analysis:
+                    continue
+                # Skip if a deep_diver task for this item is already pending or running.
+                pending_task = conn.execute(
+                    "SELECT 1 FROM task_queue "
+                    "WHERE agent_type='deep_diver' AND status IN ('pending','running') "
+                    "AND payload LIKE ? LIMIT 1",
+                    (f'%"item_id": {item_id}%',),
+                ).fetchone()
+                if pending_task:
+                    continue
+                enqueue_task(ctx.db, agent_type="deep_diver",
+                             payload={"item_id": item_id}, priority=3)
+                enqueued += 1
+        return enqueued
 
     def _run_llm_filter(self, items: list[dict]) -> list[dict]:
         from claude_cli import call_claude_json
