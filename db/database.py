@@ -38,9 +38,13 @@ class Database:
 
     @contextmanager
     def connect(self):
-        conn = sqlite3.connect(str(self.db_path))
+        conn = sqlite3.connect(str(self.db_path), timeout=30)
         conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("PRAGMA journal_mode=WAL")
+        # Some sqlite builds don't fully honor the constructor's timeout arg;
+        # set it explicitly so concurrent writers wait instead of failing fast.
+        conn.execute("PRAGMA busy_timeout=30000")
+        conn.execute("PRAGMA synchronous=NORMAL")
         conn.row_factory = sqlite3.Row
         try:
             yield conn

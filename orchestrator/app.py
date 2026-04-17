@@ -6,6 +6,7 @@ import time
 from typing import Callable
 
 from db.database import Database
+from db.queries import reset_stuck_tasks
 from orchestrator.events import EventBus
 from orchestrator.dispatcher import TaskDispatcher
 from orchestrator.scheduler import AgentScheduler
@@ -34,6 +35,9 @@ class Application:
     def start(self) -> None:
         logger.info("Starting TrendBot application")
         self._running = True
+        reset = reset_stuck_tasks(self.db)
+        if reset:
+            logger.warning(f"Reset {reset} stuck task(s) from previous run")
         self.scheduler.start()
         self._dispatcher_thread = threading.Thread(
             target=self._dispatch_loop, daemon=True

@@ -210,6 +210,42 @@ def promote_item_to_tracking(db: Database, item_id: int) -> None:
         conn.commit()
 
 
+def reset_stuck_tasks(db: Database, max_age_seconds: int = 3600) -> int:
+    """Mark tasks that have been in 'running' for too long as 'failed'.
+
+    Why: if the process dies mid-task, the row stays 'running' forever and
+    blocks any sane retry/observability. Run on dispatcher startup.
+    """
+    now = _now_iso()
+    cutoff = datetime.now(timezone.utc).timestamp() - max_age_seconds
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT id, started_at FROM task_queue WHERE status='running'"
+        ).fetchall()
+        stale_ids: list[int] = []
+        for row in rows:
+            started = row["started_at"]
+            if not started:
+                stale_ids.append(row["id"])
+                continue
+            try:
+                ts = datetime.fromisoformat(started).timestamp()
+            except ValueError:
+                stale_ids.append(row["id"])
+                continue
+            if ts < cutoff:
+                stale_ids.append(row["id"])
+
+        for tid in stale_ids:
+            conn.execute(
+                "UPDATE task_queue SET status='failed', completed_at=?, "
+                "error='reset on startup: task was stuck in running' WHERE id=?",
+                (now, tid),
+            )
+        conn.commit()
+    return len(stale_ids)
+
+
 def get_pending_tasks(db: Database, agent_type: str | None = None) -> list[dict]:
     with db.connect() as conn:
         query = "SELECT * FROM task_queue WHERE status='pending'"

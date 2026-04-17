@@ -2,6 +2,7 @@ import json
 import pytest
 from pathlib import Path
 from db.database import Database
+from datetime import datetime, timezone, timedelta
 from db.queries import (
     upsert_item,
     get_item_by_url,
@@ -14,6 +15,7 @@ from db.queries import (
     complete_task,
     fail_task,
     get_pending_tasks,
+    reset_stuck_tasks,
 )
 
 
@@ -217,3 +219,53 @@ def test_completed_tasks_not_in_pending(db):
     complete_task(db, task_id, result={})
     pending = get_pending_tasks(db)
     assert len(pending) == 0
+
+
+def test_reset_stuck_tasks_marks_old_running_as_failed(db):
+    """Tasks left in 'running' past the cutoff should be reset to 'failed'."""
+    stuck_id = enqueue_task(db, agent_type="scorer", payload={})
+    fresh_id = enqueue_task(db, agent_type="scorer", payload={})
+
+    long_ago = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    just_now = datetime.now(timezone.utc).isoformat()
+    with db.connect() as conn:
+        conn.execute("UPDATE task_queue SET status='running', started_at=? WHERE id=?",
+                     (long_ago, stuck_id))
+        conn.execute("UPDATE task_queue SET status='running', started_at=? WHERE id=?",
+                     (just_now, fresh_id))
+        conn.commit()
+
+    reset_count = reset_stuck_tasks(db, max_age_seconds=3600)
+    assert reset_count == 1
+
+    with db.connect() as conn:
+        rows = {r["id"]: dict(r) for r in conn.execute(
+            "SELECT id, status, error FROM task_queue").fetchall()}
+    assert rows[stuck_id]["status"] == "failed"
+    assert "stuck" in rows[stuck_id]["error"]
+    assert rows[fresh_id]["status"] == "running"
+
+
+def test_reset_stuck_tasks_handles_null_started_at(db):
+    """Defensive: rows with status='running' but no started_at are treated as stuck."""
+    task_id = enqueue_task(db, agent_type="scorer", payload={})
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE task_queue SET status='running', started_at=NULL WHERE id=?",
+            (task_id,),
+        )
+        conn.commit()
+
+    reset_count = reset_stuck_tasks(db, max_age_seconds=3600)
+    assert reset_count == 1
+
+    with db.connect() as conn:
+        row = conn.execute(
+            "SELECT status FROM task_queue WHERE id=?", (task_id,)
+        ).fetchone()
+    assert row["status"] == "failed"
+
+
+def test_reset_stuck_tasks_no_op_when_clean(db):
+    enqueue_task(db, agent_type="scorer", payload={})  # pending
+    assert reset_stuck_tasks(db) == 0
