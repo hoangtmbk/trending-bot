@@ -118,6 +118,105 @@ class TestDigestPusher:
         assert "https://example.com/old" not in sent_text
 
 
+def _deep_dive_analysis(db: Database, item_id: int, content: dict) -> None:
+    with db.connect() as conn:
+        conn.execute(
+            "INSERT INTO item_analysis (item_id, analysis_type, created_at, content, prompt_version) "
+            "VALUES (?, 'deep_dive', datetime('now'), ?, 'v1')",
+            (item_id, json.dumps(content)),
+        )
+        conn.commit()
+
+
+def _set_filter_content(db: Database, item_id: int, content: dict) -> None:
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE item_analysis SET content=? "
+            "WHERE item_id=? AND analysis_type='filter'",
+            (json.dumps(content), item_id),
+        )
+        conn.commit()
+
+
+class TestDigestDetails:
+    def test_digest_includes_filter_summary(self, ctx, db, monkeypatch):
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "x")
+        monkeypatch.setenv("TELEGRAM_CHAT_ID", "y")
+        item_id = upsert_item(db, url="https://example.com/s", title="S",
+                              source="github", normalized_score=90.0)
+        _filter_analysis(db, item_id)
+        _set_filter_content(db, item_id, {"summary": "A memorable one-liner."})
+
+        with patch.object(DigestPusher, "_send") as send:
+            DigestPusher().execute(ctx)
+
+        assert send.call_count == 1
+        digest_text = send.call_args_list[0][0][2]
+        assert "A memorable one-liner." in digest_text
+
+    def test_no_followup_when_no_deep_dive(self, ctx, db, monkeypatch):
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "x")
+        monkeypatch.setenv("TELEGRAM_CHAT_ID", "y")
+        item_id = upsert_item(db, url="https://example.com/n", title="N",
+                              source="github", normalized_score=90.0)
+        _filter_analysis(db, item_id)
+
+        with patch.object(DigestPusher, "_send") as send:
+            DigestPusher().execute(ctx)
+
+        assert send.call_count == 1
+
+    def test_sends_followup_when_deep_dive_present(self, ctx, db, monkeypatch):
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "x")
+        monkeypatch.setenv("TELEGRAM_CHAT_ID", "y")
+        item_id = upsert_item(db, url="https://example.com/d", title="DeepItem",
+                              source="github", normalized_score=95.0)
+        _filter_analysis(db, item_id)
+        _set_filter_content(db, item_id, {"summary": "Short summary"})
+        _deep_dive_analysis(db, item_id, {
+            "what_it_is": "A novel thing.",
+            "why_trending": "People love it.",
+            "pain_point": "Real pain.",
+            "app_idea": "Build this.",
+            "competitors": ["A", "B"],
+        })
+
+        with patch.object(DigestPusher, "_send") as send:
+            DigestPusher().execute(ctx)
+
+        assert send.call_count == 2
+        digest_text = send.call_args_list[0][0][2]
+        followup_text = send.call_args_list[1][0][2]
+        assert "Short summary" in digest_text
+        assert "Deep Dives" in followup_text
+        assert "#1" in followup_text
+        assert "DeepItem" in followup_text
+        assert "A novel thing." in followup_text
+
+    def test_followup_uses_newest_analysis_row(self, ctx, db, monkeypatch):
+        """If two deep_dive rows exist for the same item, use the newer one."""
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "x")
+        monkeypatch.setenv("TELEGRAM_CHAT_ID", "y")
+        item_id = upsert_item(db, url="https://example.com/dup", title="Dup",
+                              source="github", normalized_score=95.0)
+        _filter_analysis(db, item_id)
+        with db.connect() as conn:
+            conn.execute(
+                "INSERT INTO item_analysis (item_id, analysis_type, created_at, content, prompt_version) "
+                "VALUES (?, 'deep_dive', datetime('now', '-1 hour'), ?, 'v1')",
+                (item_id, json.dumps({"what_it_is": "OLD VERSION"})),
+            )
+            conn.commit()
+        _deep_dive_analysis(db, item_id, {"what_it_is": "NEW VERSION"})
+
+        with patch.object(DigestPusher, "_send") as send:
+            DigestPusher().execute(ctx)
+
+        followup_text = send.call_args_list[1][0][2]
+        assert "NEW VERSION" in followup_text
+        assert "OLD VERSION" not in followup_text
+
+
 class TestChunk:
     def test_short_text_returns_single_chunk(self):
         assert _chunk("hello", limit=100) == ["hello"]

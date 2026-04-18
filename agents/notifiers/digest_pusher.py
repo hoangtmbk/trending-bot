@@ -5,7 +5,7 @@ import logging
 import os
 
 from agents.base import BaseAgent, AgentContext, AgentResult
-from interfaces.telegram.formatters import format_digest
+from interfaces.telegram.formatters import format_digest, format_deep_dives_followup
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +39,71 @@ class DigestPusher(BaseAgent):
         if not items:
             return AgentResult(success=True, message="No new tracked items to send")
 
-        text = format_digest(items, title="Trending")
-        self._send(bot_token, chat_id, text)
+        summaries, deep_dives = self._load_analyses(ctx, [item["id"] for item in items])
+
+        digest_text = format_digest(items, title="Trending", summaries=summaries)
+        self._send(bot_token, chat_id, digest_text)
+
+        followup_text = format_deep_dives_followup(items, deep_dives)
+        if followup_text:
+            self._send(bot_token, chat_id, followup_text)
+
         self._record_digest(ctx, items)
+
+        message = f"Sent digest with {len(items)} items"
+        if followup_text:
+            message += f" + deep-dive follow-up ({len(deep_dives)} items)"
 
         return AgentResult(
             success=True,
-            message=f"Sent digest with {len(items)} items",
-            data={"count": len(items)},
+            message=message,
+            data={"count": len(items), "deep_dives": bool(followup_text)},
         )
+
+    def _load_analyses(
+        self, ctx: AgentContext, item_ids: list[int],
+    ) -> tuple[dict[int, str], dict[int, dict]]:
+        """Return (summaries, deep_dives) keyed by item_id.
+
+        summaries[item_id] -> the filter row's `summary` field (str).
+        deep_dives[item_id] -> the parsed deep_dive payload (dict).
+        When multiple rows exist for the same (item_id, type) the most recent wins.
+        """
+        if not item_ids:
+            return {}, {}
+
+        placeholders = ",".join("?" * len(item_ids))
+        summaries: dict[int, str] = {}
+        deep_dives: dict[int, dict] = {}
+        with ctx.db.connect() as conn:
+            rows = conn.execute(
+                f"SELECT item_id, analysis_type, content FROM item_analysis "
+                f"WHERE analysis_type IN ('filter', 'deep_dive') "
+                f"  AND item_id IN ({placeholders}) "
+                f"ORDER BY created_at DESC",
+                item_ids,
+            ).fetchall()
+
+        for row in rows:
+            item_id = row["item_id"]
+            try:
+                payload = json.loads(row["content"]) if row["content"] else {}
+            except (ValueError, TypeError):
+                logger.debug("Malformed %s analysis for item %s", row["analysis_type"], item_id)
+                continue
+            if row["analysis_type"] == "filter":
+                if item_id in summaries:
+                    continue
+                summary = payload.get("summary") if isinstance(payload, dict) else None
+                if isinstance(summary, str) and summary.strip():
+                    summaries[item_id] = summary.strip()
+            elif row["analysis_type"] == "deep_dive":
+                if item_id in deep_dives:
+                    continue
+                if isinstance(payload, dict):
+                    deep_dives[item_id] = payload
+
+        return summaries, deep_dives
 
     def _select_items(self, ctx: AgentContext, limit: int) -> list[dict]:
         with ctx.db.connect() as conn:
