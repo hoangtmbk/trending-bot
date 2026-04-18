@@ -86,3 +86,5 @@ orchestrator:
       schedule: "on_demand"
     topic_tracker:
       schedule: "0 4 * * 1"
+    digest_pusher:
+      schedule: "0 8,20 * * *"

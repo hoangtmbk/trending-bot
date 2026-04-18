@@ -39,6 +39,7 @@ from agents.analysts.interest_adjuster import InterestAdjuster
 from agents.researchers.deep_diver import DeepDiver
 from agents.researchers.topic_tracker import TopicTracker
 from agents.researchers.competitor_watch import CompetitorWatcher
+from agents.notifiers.digest_pusher import DigestPusher
 
 def _configure_logging(log_dir: Path | str = "logs") -> None:
     """Configure root logger with stream + rotating file handler.
@@ -103,6 +104,7 @@ def _register_all_agents(app: Application) -> None:
         DeepDiver(),
         TopicTracker(),
         CompetitorWatcher(),
+        DigestPusher(),
     ]
     for agent in agents:
         app.register_agent(agent)

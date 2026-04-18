@@ -124,6 +124,24 @@ class TestFormatDigest:
         assert "15." in result
         assert "16." not in result
 
+    def test_includes_url_when_present(self, sample_item):
+        result = format_digest([sample_item])
+        assert "https://github.com/example/agentkit" in result
+        assert 'href="https://github.com/example/agentkit"' in result
+
+    def test_omits_link_when_url_missing(self):
+        item = {"title": "No URL", "source": "github", "normalized_score": 50}
+        result = format_digest([item])
+        assert "No URL" in result
+        assert "href=" not in result
+
+    def test_escapes_url_special_chars(self):
+        item = {"title": "Tricky", "source": "github",
+                "url": "https://example.com/q?a=1&b=<x>", "normalized_score": 10}
+        result = format_digest([item])
+        assert "&amp;" in result
+        assert "&lt;x&gt;" in result
+
 
 class TestFormatDeepDive:
     def test_formats_analysis_content(self):

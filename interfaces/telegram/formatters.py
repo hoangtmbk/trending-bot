@@ -26,7 +26,11 @@ def format_item(item: dict, include_actions: bool = True) -> str:
 
 
 def format_digest(items: list[dict], title: str = "Trending") -> str:
-    """Format a list of items as a digest message."""
+    """Format a list of items as a digest message.
+
+    Each item renders as a clickable title on line 1 and a source/score footer
+    on line 2; the raw URL is also exposed so it can be copied for verification.
+    """
     if not items:
         return "No trending items found."
 
@@ -35,8 +39,15 @@ def format_digest(items: list[dict], title: str = "Trending") -> str:
         source = item.get("source", "unknown")
         icon = SOURCE_ICONS.get(source, "\u2022")
         item_title = item.get("title", "Untitled")[:80]
+        url = item.get("url", "")
         score = item.get("normalized_score", 0)
-        lines.append(f"{i}. {icon} {_escape_html(item_title)} ({score:.0f})")
+        if url:
+            safe_url = _escape_html(url)
+            lines.append(f"{i}. {icon} <a href=\"{safe_url}\">{_escape_html(item_title)}</a>")
+            lines.append(f"   <i>{source}</i> \u00b7 score {score:.0f} \u00b7 {safe_url}")
+        else:
+            lines.append(f"{i}. {icon} {_escape_html(item_title)}")
+            lines.append(f"   <i>{source}</i> \u00b7 score {score:.0f}")
 
     return "\n".join(lines)
 
