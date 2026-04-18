@@ -15,12 +15,12 @@ def make_item_keyboard(item_id: int) -> InlineKeyboardMarkup:
     """Create inline keyboard for item actions."""
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("\ud83d\udd16 Bookmark", callback_data=f"bookmark:{item_id}"),
-            InlineKeyboardButton("\ud83d\udd0d Deep Dive", callback_data=f"deepdive:{item_id}"),
+            InlineKeyboardButton("\U0001F516 Bookmark", callback_data=f"bookmark:{item_id}"),
+            InlineKeyboardButton("\U0001F50D Deep Dive", callback_data=f"deepdive:{item_id}"),
         ],
         [
-            InlineKeyboardButton("\ud83d\udc4e Not Relevant", callback_data=f"dismiss:{item_id}"),
-            InlineKeyboardButton("\ud83d\udccc Track Topic", callback_data=f"track:{item_id}"),
+            InlineKeyboardButton("\U0001F44E Not Relevant", callback_data=f"dismiss:{item_id}"),
+            InlineKeyboardButton("\U0001F4CC Track Topic", callback_data=f"track:{item_id}"),
         ],
     ])
 
@@ -83,7 +83,7 @@ async def cmd_deepdive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(text, parse_mode="HTML")
     else:
         enqueue_task(db, agent_type="deep_diver", payload={"item_id": item["id"], "url": item["url"]})
-        await update.message.reply_text(f"\ud83d\udd0d Deep dive queued for: {item['title']}\nI'll notify you when it's ready.")
+        await update.message.reply_text(f"\U0001F50D Deep dive queued for: {item['title']}\nI'll notify you when it's ready.")
 
 
 async def cmd_track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -111,7 +111,7 @@ async def cmd_track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
         conn.commit()
 
-    await update.message.reply_text(f"\ud83d\udccc Now tracking: <b>{topic_name}</b> (weight: 2.0)", parse_mode="HTML")
+    await update.message.reply_text(f"\U0001F4CC Now tracking: <b>{topic_name}</b> (weight: 2.0)", parse_mode="HTML")
 
 
 async def cmd_untrack(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -195,7 +195,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         pending_tasks = conn.execute("SELECT COUNT(*) FROM task_queue WHERE status='pending'").fetchone()[0]
 
     lines = [
-        "\ud83d\udcca <b>TrendBot Status</b>",
+        "\U0001F4CA <b>TrendBot Status</b>",
         "",
         f"Items tracked: {item_count}",
         f"Analyses: {analysis_count}",
@@ -224,7 +224,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             conn.commit()
         await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text("\ud83d\udd16 Bookmarked!")
+        await query.message.reply_text("\U0001F516 Bookmarked!")
 
     elif action == "dismiss":
         with db.connect() as conn:
@@ -234,11 +234,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             conn.commit()
         await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text("\ud83d\udc4e Dismissed")
+        await query.message.reply_text("\U0001F44E Dismissed")
 
     elif action == "deepdive":
         enqueue_task(db, agent_type="deep_diver", payload={"item_id": item_id})
-        await query.message.reply_text("\ud83d\udd0d Deep dive queued!")
+        await query.message.reply_text("\U0001F50D Deep dive queued!")
 
     elif action == "track":
         from db.queries import get_item_by_id
@@ -259,6 +259,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 conn.commit()
                 topic_names = [t["name"] for t in topics]
             if topic_names:
-                await query.message.reply_text(f"\ud83d\udccc Tracking: {', '.join(topic_names)}")
+                await query.message.reply_text(f"\U0001F4CC Tracking: {', '.join(topic_names)}")
             else:
                 await query.message.reply_text("No topics assigned to this item yet.")

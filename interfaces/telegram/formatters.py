@@ -3,8 +3,8 @@ import json
 
 
 SOURCE_ICONS = {
-    "github": "\u2b50", "reddit": "\ud83d\udcac", "arxiv": "\ud83d\udcc4",
-    "huggingface": "\ud83e\udd17", "twitter": "\ud835\udd4f", "hackernews": "\ud83d\udd36",
+    "github": "\u2b50", "reddit": "\U0001F4AC", "arxiv": "\U0001F4C4",
+    "huggingface": "\U0001F917", "twitter": "\U0001D54F", "hackernews": "\U0001F536",
 }
 
 
@@ -19,8 +19,8 @@ def format_item(item: dict, include_actions: bool = True) -> str:
 
     lines = [f"{icon} <b>{_escape_html(title)}</b>"]
     if url:
-        lines.append(f"\ud83d\udd17 {url}")
-    lines.append(f"\ud83d\udcca Score: {score:.0f} | Seen: {times_seen}x | Source: {source}")
+        lines.append(f"\U0001F517 {url}")
+    lines.append(f"\U0001F4CA Score: {score:.0f} | Seen: {times_seen}x | Source: {source}")
 
     return "\n".join(lines)
 
@@ -34,7 +34,7 @@ def format_digest(items: list[dict], title: str = "Trending") -> str:
     if not items:
         return "No trending items found."
 
-    lines = [f"\ud83d\udd25 <b>{_escape_html(title)}</b>", f"{len(items)} items", ""]
+    lines = [f"\U0001F525 <b>{_escape_html(title)}</b>", f"{len(items)} items", ""]
     for i, item in enumerate(items[:15], 1):
         source = item.get("source", "unknown")
         icon = SOURCE_ICONS.get(source, "\u2022")
@@ -57,7 +57,7 @@ def format_deep_dive(analysis: dict) -> str:
     content = json.loads(analysis["content"]) if isinstance(analysis["content"], str) else analysis["content"]
 
     lines = [
-        f"\ud83d\udd2c <b>Deep Dive</b>",
+        f"\U0001F52C <b>Deep Dive</b>",
         "",
         f"<b>What:</b> {_escape_html(str(content.get('what_it_is', 'N/A'))[:300])}",
         "",
@@ -80,10 +80,10 @@ def format_topics(topics: list[dict]) -> str:
     if not topics:
         return "No active topics."
 
-    lines = ["\ud83d\udccb <b>Your Topics</b>", ""]
+    lines = ["\U0001F4CB <b>Your Topics</b>", ""]
     for t in topics:
         weight = t.get("weight", 1.0)
-        indicator = "\ud83d\udd34" if weight >= 2.0 else "\ud83d\udfe1" if weight >= 1.0 else "\u26aa"
+        indicator = "\U0001F534" if weight >= 2.0 else "\U0001F7E1" if weight >= 1.0 else "\u26aa"
         lines.append(f"{indicator} {_escape_html(t['name'])} (weight: {weight:.1f})")
 
     return "\n".join(lines)

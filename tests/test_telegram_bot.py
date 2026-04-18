@@ -87,7 +87,7 @@ class TestFormatItem:
         item = {"title": "Test", "source": "reddit", "normalized_score": 50}
         result = format_item(item)
         assert "Test" in result
-        assert "\ud83d\udd17" not in result  # No link icon when no URL
+        assert "\U0001F517" not in result  # No link icon when no URL
 
     def test_truncates_long_title(self):
         item = {"title": "A" * 200, "source": "github", "url": "", "normalized_score": 10}
@@ -189,8 +189,8 @@ class TestFormatTopics:
         result = format_topics(topics)
         assert "llm agents" in result
         assert "weight: 2.5" in result
-        assert "\ud83d\udd34" in result  # High weight indicator
-        assert "\ud83d\udfe1" in result  # Medium weight indicator
+        assert "\U0001F534" in result  # High weight indicator
+        assert "\U0001F7E1" in result  # Medium weight indicator
         assert "\u26aa" in result  # Low weight indicator
 
 
