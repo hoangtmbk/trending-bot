@@ -9,7 +9,6 @@ from agents.scouts.reddit_scout import RedditScout
 from agents.scouts.arxiv_scout import ArxivScout
 from agents.scouts.huggingface_scout import HuggingFaceScout
 from agents.scouts.hackernews_scout import HackerNewsScout
-from agents.scouts.twitter_scout import TwitterScout
 from models import RawItem
 
 
@@ -315,51 +314,6 @@ class TestHackerNewsScout:
         assert len(received) == 1
         assert received[0]["source"] == "hackernews"
         assert received[0]["count"] == 1
-
-
-# ========== Twitter Scout ==========
-
-class TestTwitterScout:
-
-    @patch("scoring.momentum.compute_momentum_score", return_value=0.0)
-    @patch("collectors.twitter.TwitterCollector.collect")
-    def test_collect_writes_to_db(self, mock_collect, mock_momentum, db, event_bus):
-        mock_collect.return_value = [
-            _make_raw("twitter", "https://twitter.com/user/status/1",
-                       title="AI tweet",
-                       metrics={"retweets": 50, "quotes": 10}),
-        ]
-        ctx = _make_ctx(db, event_bus, "twitter", extra_cfg={"fallback_to_rss": True})
-
-        scout = TwitterScout()
-        result = scout.execute(ctx)
-
-        assert result.success is True
-        assert result.data["count"] == 1
-        items = get_items(db, source="twitter")
-        assert len(items) == 1
-
-    def test_disabled_returns_early(self, db, event_bus):
-        ctx = _make_ctx(db, event_bus, "twitter", enabled=False)
-        scout = TwitterScout()
-        result = scout.execute(ctx)
-        assert result.success is True
-        assert "disabled" in result.message.lower()
-
-    @patch("scoring.momentum.compute_momentum_score", return_value=0.0)
-    @patch("collectors.twitter.TwitterCollector.collect")
-    def test_empty_collect_still_emits(self, mock_collect, mock_momentum, db, event_bus):
-        mock_collect.return_value = []
-        received = []
-        event_bus.subscribe("items_updated", lambda d: received.append(d))
-
-        ctx = _make_ctx(db, event_bus, "twitter")
-        scout = TwitterScout()
-        scout.execute(ctx)
-
-        assert len(received) == 1
-        assert received[0]["source"] == "twitter"
-        assert received[0]["count"] == 0
 
 
 # ========== Cross-cutting tests ==========

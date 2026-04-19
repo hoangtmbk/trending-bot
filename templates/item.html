@@ -9,7 +9,11 @@
 <body>
     <header>
         <h1><a href="index.html">AI Trending Bot</a></h1>
-        <nav class="date-nav"><span>{{ date }}</span></nav>
+        <nav class="date-nav">
+            <select id="date-select" data-current="{{ date }}">
+                <option value="{{ date }}">{{ date }}</option>
+            </select>
+        </nav>
     </header>
     <main class="deep-dive">
         <h2>{{ report.title }}</h2>
@@ -52,5 +56,29 @@
             </ul>
         </section>
     </main>
+    <script>
+        (async () => {
+            const sel = document.getElementById('date-select');
+            if (!sel) return;
+            const current = sel.dataset.current;
+            try {
+                const res = await fetch('/api/dates', { cache: 'no-store' });
+                if (!res.ok) return;
+                const { dates } = await res.json();
+                if (!Array.isArray(dates) || dates.length === 0) return;
+                while (sel.firstChild) sel.removeChild(sel.firstChild);
+                for (const d of dates) {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = d;
+                    if (d === current) opt.selected = true;
+                    sel.appendChild(opt);
+                }
+                sel.addEventListener('change', () => {
+                    window.location.href = '/' + sel.value + '/';
+                });
+            } catch (e) { /* served as static file — leave fallback option */ }
+        })();
+    </script>
 </body>
 </html>

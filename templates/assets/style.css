@@ -4,6 +4,8 @@ header { background: #161b22; padding: 1rem 2rem; display: flex; justify-content
 header h1 { color: #58a6ff; font-size: 1.2rem; }
 header h1 a { color: #58a6ff; text-decoration: none; }
 .date-nav { color: #8b949e; }
+.date-nav select { background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.85rem; font-family: inherit; cursor: pointer; }
+.date-nav select:hover { border-color: #58a6ff; }
 main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
 .search-box { width: 100%; padding: 0.5rem; margin-bottom: 1rem; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 0.9rem; }
 .item-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 1rem; margin-bottom: 0.5rem; }

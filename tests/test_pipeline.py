@@ -22,7 +22,7 @@ def test_pipeline_collect_stage(tmp_path):
                      "freshness_half_life_hours": 48, "cross_platform_boost": {2: 1.5, 3: 2.5, 4: 4.0}},
         "sources": {"hackernews": {"enabled": True}, "github": {"enabled": False},
                      "reddit": {"enabled": False}, "arxiv": {"enabled": False},
-                     "huggingface": {"enabled": False}, "twitter": {"enabled": False}},
+                     "huggingface": {"enabled": False}},
         "delivery": {"telegram": {"enabled": False}, "dashboard": {"enabled": False}},
     }
     pipeline = Pipeline(config=config, data_root=tmp_path / "data")
@@ -45,7 +45,7 @@ def test_pipeline_full_run_with_mocks(tmp_path):
                      "freshness_half_life_hours": 48, "cross_platform_boost": {2: 1.5, 3: 2.5, 4: 4.0}},
         "sources": {"hackernews": {"enabled": True}, "github": {"enabled": False},
                      "reddit": {"enabled": False}, "arxiv": {"enabled": False},
-                     "huggingface": {"enabled": False}, "twitter": {"enabled": False}},
+                     "huggingface": {"enabled": False}},
         "delivery": {"telegram": {"enabled": False}, "dashboard": {"enabled": True, "port": 8080}},
     }
 

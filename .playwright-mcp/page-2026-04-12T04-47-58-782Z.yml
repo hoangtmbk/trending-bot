@@ -1,0 +1,106 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "AI Trending Bot" [level=1] [ref=e3]
+    - navigation [ref=e4]:
+      - combobox [ref=e5] [cursor=pointer]:
+        - option "2026-04-12"
+        - option "2026-04-09" [selected]
+  - main [ref=e6]:
+    - generic [ref=e7]:
+      - heading "Today's Digest (12 items)" [level=2] [ref=e8]
+      - textbox "Search items..." [ref=e9]
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - link "Anthropic's new model, Claude Mythos, is so powerful that it is not releasing it to the public." [ref=e12] [cursor=pointer]:
+            - /url: anthropic-s-new-model-claude-mythos-is-so-powerful-that-it-i.html
+          - generic [ref=e13]: 9/10
+        - paragraph [ref=e14]: Anthropic announces Claude Mythos, reportedly so powerful it's withheld from public release — linked to Project Glasswing security initiative
+        - generic [ref=e15]:
+          - generic [ref=e16]: reddit
+          - generic [ref=e17]: DEEP DIVE
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - link "Internal model at OpenAI solves 5 more Erdős problems" [ref=e20] [cursor=pointer]:
+            - /url: internal-model-at-openai-solves-5-more-erd-s-problems.html
+          - generic [ref=e21]: 9/10
+        - paragraph [ref=e22]: OpenAI internal model solves 5 additional Erdős problems — major milestone demonstrating AI capability in open mathematical research
+        - generic [ref=e23]:
+          - generic [ref=e24]: reddit
+          - generic [ref=e25]: DEEP DIVE
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - 'link "MegaTrain: Full Precision Training of 100B+ Parameter LLMs on a Single GPU" [ref=e28] [cursor=pointer]':
+            - /url: megatrain-full-precision-training-of-100b-parameter-llms-on-.html
+          - generic [ref=e29]: 9/10
+        - paragraph [ref=e30]: MegaTrain enables full-precision training of 100B+ parameter LLMs on a single GPU — could dramatically democratize large model training
+        - generic [ref=e31]:
+          - generic [ref=e32]: hackernews
+          - generic [ref=e33]: reddit
+          - generic [ref=e34]: DEEP DIVE
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - link "Muse Spark, first model from Meta Superintelligence Labs" [ref=e37] [cursor=pointer]:
+            - /url: muse-spark-first-model-from-meta-superintelligence-labs.html
+          - generic [ref=e38]: 8/10
+        - paragraph [ref=e39]: Muse Spark is Meta Superintelligence Labs' first released model — signals Meta's frontier AI ambitions under new division
+        - generic [ref=e40]:
+          - generic [ref=e41]: reddit
+          - generic [ref=e42]: DEEP DIVE
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - 'link "Project Glasswing: Securing critical software for the AI era" [ref=e45] [cursor=pointer]':
+            - /url: project-glasswing-securing-critical-software-for-the-ai-era.html
+          - generic [ref=e46]: 8/10
+        - paragraph [ref=e47]: "Anthropic's Project Glasswing: using Mythos to secure critical software infrastructure — new AI security initiative with major implications"
+        - generic [ref=e48]:
+          - generic [ref=e49]: hackernews
+          - generic [ref=e50]: DEEP DIVE
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - 'link "Carlini, one of the world best AI security researchers: \"I''ve found more bugs in the last few weeks with Mythos than in the rest of my entire life combined\"" [ref=e53] [cursor=pointer]':
+            - /url: https://reddit.com/r/singularity/comments/1sfhvpa/carlini_one_of_the_world_best_ai_security/
+          - generic [ref=e54]: 8/10
+        - paragraph [ref=e55]: Top AI security researcher Carlini reports Mythos found more bugs than his entire career combined — strong real-world validation of AI for security research
+        - generic [ref=e57]: reddit
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - 'link "System Card: Claude Mythos Preview [pdf]" [ref=e60] [cursor=pointer]':
+            - /url: https://www-cdn.anthropic.com/53566bf5440a10affd749724787c8913a2ae0841.pdf
+          - generic [ref=e61]: 8/10
+        - paragraph [ref=e62]: Official Claude Mythos system card released — key technical document detailing capabilities, safety evaluations, and deployment decisions
+        - generic [ref=e64]: hackernews
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - link "So, this week claude wiped agentic AI startups with a new update. Also, as they have mythos now, they will ship things very fast without any trouble" [ref=e67] [cursor=pointer]:
+            - /url: https://reddit.com/r/singularity/comments/1sg0y6h/so_this_week_claude_wiped_agentic_ai_startups/
+          - generic [ref=e68]: 8/10
+        - paragraph [ref=e69]: Anthropic launches Claude Managed Agents — long-running autonomous agents with memory and compute, major platform expansion for agentic AI
+        - generic [ref=e71]: reddit
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - link "An actress Milla Jovovich just released a free open-source AI memory system that scored 100% on LongMemEval, beating every paid solution" [ref=e74] [cursor=pointer]:
+            - /url: https://reddit.com/r/singularity/comments/1sexr5v/an_actress_milla_jovovich_just_released_a_free/
+          - generic [ref=e75]: 7/10
+        - paragraph [ref=e76]: Open-source AI memory system claiming 100% on LongMemEval, beating paid solutions — notable if benchmarks hold up
+        - generic [ref=e78]: reddit
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - link "App Store sees 84% surge in new apps as AI coding tools take off" [ref=e81] [cursor=pointer]:
+            - /url: https://9to5mac.com/2026/04/06/app-store-sees-84-surge-in-new-apps-as-ai-coding-tools-take-off/
+          - generic [ref=e82]: 7/10
+        - paragraph [ref=e83]: App Store sees 84% surge in new apps driven by AI coding tools — significant data point on AI's impact on software development ecosystem
+        - generic [ref=e85]: hackernews
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - link "EXAONE 4.5 released" [ref=e88] [cursor=pointer]:
+            - /url: https://reddit.com/r/LocalLLaMA/comments/1sgc8ir/exaone_45_released/
+          - generic [ref=e89]: 6/10
+        - paragraph [ref=e90]: LG releases EXAONE 4.5 33B model with GGUF/FP8 variants — another competitive open-weight model entering the local LLM space
+        - generic [ref=e92]: reddit
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - link "Anima Preview 3 is out and its better than illustrious or pony." [ref=e95] [cursor=pointer]:
+            - /url: https://reddit.com/r/StableDiffusion/comments/1sgfjbs/anima_preview_3_is_out_and_its_better_than/
+          - generic [ref=e96]: 5/10
+        - paragraph [ref=e97]: Anima Preview 3 diffusion model released, claimed better than Illustrious/Pony for anime generation — niche but notable in image gen space
+        - generic [ref=e99]: reddit

@@ -1,0 +1,310 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - text: TrendBot
+    - link "Dashboard" [ref=e3] [cursor=pointer]:
+      - /url: /
+    - link "Topics" [ref=e4] [cursor=pointer]:
+      - /url: /topics
+  - generic [ref=e5]:
+    - heading "Trending Items" [level=1] [ref=e6]
+    - generic [ref=e7]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - 'link "Tell HN: Anthropic no longer allowing Claude Code subscriptions to use OpenClaw" [ref=e11] [cursor=pointer]':
+            - /url: /item/585
+          - generic [ref=e12]:
+            - generic [ref=e13]: hackernews
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e14] [cursor=pointer]:
+              - /url: https://news.ycombinator.com/item?id=47633396
+        - generic [ref=e15]: "100"
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - link "google/gemma-4-31B-it" [ref=e19] [cursor=pointer]:
+            - /url: /item/475
+          - generic [ref=e20]:
+            - generic [ref=e21]: huggingface
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e22] [cursor=pointer]:
+              - /url: https://huggingface.co/google/gemma-4-31B-it
+        - generic [ref=e23]: "100"
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - 'link "GaussiAnimate: Reconstruct and Rig Animatable Categories with Level of Dynamics" [ref=e27] [cursor=pointer]':
+            - /url: /item/375
+          - generic [ref=e28]:
+            - generic [ref=e29]: arxiv
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e30] [cursor=pointer]:
+              - /url: http://arxiv.org/abs/2604.08547v1
+        - generic [ref=e31]: "100"
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - link "My chatgpt said the N-Word" [ref=e35] [cursor=pointer]:
+            - /url: /item/313
+          - generic [ref=e36]:
+            - generic [ref=e37]: reddit
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e38] [cursor=pointer]:
+              - /url: https://reddit.com/r/ChatGPT/comments/1shb001/my_chatgpt_said_the_nword/
+        - generic [ref=e39]: "100"
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - link "The highest-scoring AI memory system ever benchmarked. And it's free." [ref=e43] [cursor=pointer]:
+            - /url: /item/1
+          - generic [ref=e44]:
+            - generic [ref=e45]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e46] [cursor=pointer]:
+              - /url: https://github.com/milla-jovovich/mempalace
+        - generic [ref=e47]: "100"
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - link "Your own personal AI assistant. Any OS. Any Platform. The lobster way. 🦞" [ref=e51] [cursor=pointer]:
+            - /url: /item/28
+          - generic [ref=e52]:
+            - generic [ref=e53]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e54] [cursor=pointer]:
+              - /url: https://github.com/openclaw/openclaw
+        - generic [ref=e55]: "100"
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - link "AI generated cow, 2014" [ref=e59] [cursor=pointer]:
+            - /url: /item/332
+          - generic [ref=e60]:
+            - generic [ref=e61]: reddit
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e62] [cursor=pointer]:
+              - /url: https://reddit.com/r/singularity/comments/1sgve5m/ai_generated_cow_2014/
+        - generic [ref=e63]: "99"
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - link "The agent harness performance optimization system. Skills, instincts, memory, security, and research" [ref=e67] [cursor=pointer]:
+            - /url: /item/79
+          - generic [ref=e68]:
+            - generic [ref=e69]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e70] [cursor=pointer]:
+              - /url: https://github.com/affaan-m/everything-claude-code
+        - generic [ref=e71]: "99"
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - 'link "ETCH-X: Robustify Expressive Body Fitting to Clothed Humans with Composable Datasets" [ref=e75] [cursor=pointer]':
+            - /url: /item/376
+          - generic [ref=e76]:
+            - generic [ref=e77]: arxiv
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e78] [cursor=pointer]:
+              - /url: http://arxiv.org/abs/2604.08548v1
+        - generic [ref=e79]: "99"
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - 'link "Show HN: I built a tiny LLM to demystify how language models work" [ref=e83] [cursor=pointer]':
+            - /url: /item/577
+          - generic [ref=e84]:
+            - generic [ref=e85]: hackernews
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e86] [cursor=pointer]:
+              - /url: https://github.com/arman-bd/guppylm
+        - generic [ref=e87]: "99"
+      - generic [ref=e89]:
+        - generic [ref=e90]:
+          - link "Updates for ChatGPT" [ref=e91] [cursor=pointer]:
+            - /url: /item/300
+          - generic [ref=e92]:
+            - generic [ref=e93]: reddit
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e94] [cursor=pointer]:
+              - /url: https://reddit.com/r/ChatGPT/comments/1o6jins/updates_for_chatgpt/
+        - generic [ref=e95]: "99"
+      - generic [ref=e97]:
+        - generic [ref=e98]:
+          - link "Real-time global intelligence dashboard. AI-powered news aggregation, geopolitical monitoring, and i" [ref=e99] [cursor=pointer]:
+            - /url: /item/56
+          - generic [ref=e100]:
+            - generic [ref=e101]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e102] [cursor=pointer]:
+              - /url: https://github.com/koala73/worldmonitor
+        - generic [ref=e103]: "99"
+      - generic [ref=e105]:
+        - generic [ref=e106]:
+          - link "omo; the best agent harness - previously oh-my-opencode" [ref=e107] [cursor=pointer]:
+            - /url: /item/53
+          - generic [ref=e108]:
+            - generic [ref=e109]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e110] [cursor=pointer]:
+              - /url: https://github.com/code-yeongyu/oh-my-openagent
+        - generic [ref=e111]: "98"
+      - generic [ref=e113]:
+        - generic [ref=e114]:
+          - link "vibecoders using claude, chat gpt and gemini for the same project be like:" [ref=e115] [cursor=pointer]:
+            - /url: /item/302
+          - generic [ref=e116]:
+            - generic [ref=e117]: reddit
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e118] [cursor=pointer]:
+              - /url: https://reddit.com/r/ChatGPT/comments/1shw1vp/vibecoders_using_claude_chat_gpt_and_gemini_for/
+        - generic [ref=e119]: "98"
+      - generic [ref=e121]:
+        - generic [ref=e122]:
+          - 'link "When Numbers Speak: Aligning Textual Numerals and Visual Instances in Text-to-Video Diffusion Models" [ref=e123] [cursor=pointer]':
+            - /url: /item/377
+          - generic [ref=e124]:
+            - generic [ref=e125]: arxiv
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e126] [cursor=pointer]:
+              - /url: http://arxiv.org/abs/2604.08546v1
+        - generic [ref=e127]: "98"
+      - generic [ref=e129]:
+        - generic [ref=e130]:
+          - link "zai-org/GLM-5.1" [ref=e131] [cursor=pointer]:
+            - /url: /item/476
+          - generic [ref=e132]:
+            - generic [ref=e133]: huggingface
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e134] [cursor=pointer]:
+              - /url: https://huggingface.co/zai-org/GLM-5.1
+        - generic [ref=e135]: "98"
+      - generic [ref=e137]:
+        - generic [ref=e138]:
+          - link "A Visual Introduction to Machine Learning (2015)" [ref=e139] [cursor=pointer]:
+            - /url: /item/589
+          - generic [ref=e140]:
+            - generic [ref=e141]: hackernews
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e142] [cursor=pointer]:
+              - /url: https://r2d3.us/visual-intro-to-machine-learning-part-1/
+        - generic [ref=e143]: "98"
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - link "💫 Toolkit to help you get started with Spec-Driven Development" [ref=e147] [cursor=pointer]:
+            - /url: /item/41
+          - generic [ref=e148]:
+            - generic [ref=e149]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e150] [cursor=pointer]:
+              - /url: https://github.com/github/spec-kit
+        - generic [ref=e151]: "98"
+      - generic [ref=e153]:
+        - generic [ref=e154]:
+          - link "The era of human coding is over" [ref=e155] [cursor=pointer]:
+            - /url: /item/325
+          - generic [ref=e156]:
+            - generic [ref=e157]: reddit
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e158] [cursor=pointer]:
+              - /url: https://reddit.com/r/singularity/comments/1rweoq5/the_era_of_human_coding_is_over/
+        - generic [ref=e159]: "97"
+      - generic [ref=e161]:
+        - generic [ref=e162]:
+          - link "LLM驱动的 A/H/美股智能分析器：多数据源行情 + 实时新闻 + LLM决策仪表盘 + 多渠道推送，零成本定时运行，纯白嫖. LLM-powered stock analysis system f" [ref=e163] [cursor=pointer]:
+            - /url: /item/217
+          - generic [ref=e164]:
+            - generic [ref=e165]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e166] [cursor=pointer]:
+              - /url: https://github.com/ZhuLinsen/daily_stock_analysis
+        - generic [ref=e167]: "97"
+      - generic [ref=e169]:
+        - generic [ref=e170]:
+          - 'link "Act Wisely: Cultivating Meta-Cognitive Tool Use in Agentic Multimodal Models" [ref=e171] [cursor=pointer]':
+            - /url: /item/378
+          - generic [ref=e172]:
+            - generic [ref=e173]: arxiv
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e174] [cursor=pointer]:
+              - /url: http://arxiv.org/abs/2604.08545v1
+        - generic [ref=e175]: "97"
+      - generic [ref=e177]:
+        - generic [ref=e178]:
+          - link "An open-source AI agent that brings the power of Gemini directly into your terminal." [ref=e179] [cursor=pointer]:
+            - /url: /item/38
+          - generic [ref=e180]:
+            - generic [ref=e181]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e182] [cursor=pointer]:
+              - /url: https://github.com/google-gemini/gemini-cli
+        - generic [ref=e183]: "97"
+      - generic [ref=e185]:
+        - generic [ref=e186]:
+          - 'link "MegaTrain: Full Precision Training of 100B+ Parameter LLMs on a Single GPU" [ref=e187] [cursor=pointer]':
+            - /url: /item/568
+          - generic [ref=e188]:
+            - generic [ref=e189]: hackernews
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e190] [cursor=pointer]:
+              - /url: https://arxiv.org/abs/2604.05091
+        - generic [ref=e191]: "97"
+      - generic [ref=e193]:
+        - generic [ref=e194]:
+          - link "The ultimate study hack" [ref=e195] [cursor=pointer]:
+            - /url: /item/303
+          - generic [ref=e196]:
+            - generic [ref=e197]: reddit
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e198] [cursor=pointer]:
+              - /url: https://reddit.com/r/ChatGPT/comments/1shli05/the_ultimate_study_hack/
+        - generic [ref=e199]: "97"
+      - generic [ref=e201]:
+        - generic [ref=e202]:
+          - link "OpenViking is an open-source context database designed specifically for AI Agents(such as openclaw)." [ref=e203] [cursor=pointer]:
+            - /url: /item/220
+          - generic [ref=e204]:
+            - generic [ref=e205]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e206] [cursor=pointer]:
+              - /url: https://github.com/volcengine/OpenViking
+        - generic [ref=e207]: "96"
+      - generic [ref=e209]:
+        - generic [ref=e210]:
+          - 'link "Fascinating story: Tech Entrepreneur in Australia, using ChatGPT, AlphaFold, and a custom made mRNA" [ref=e211] [cursor=pointer]':
+            - /url: /item/326
+          - generic [ref=e212]:
+            - generic [ref=e213]: reddit
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e214] [cursor=pointer]:
+              - /url: https://reddit.com/r/singularity/comments/1rtmmpe/fascinating_story_tech_entrepreneur_in_australia/
+        - generic [ref=e215]: "96"
+      - generic [ref=e217]:
+        - generic [ref=e218]:
+          - link "A Claude Code plugin that automatically captures everything Claude does during your coding sessions," [ref=e219] [cursor=pointer]:
+            - /url: /item/57
+          - generic [ref=e220]:
+            - generic [ref=e221]: github
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e222] [cursor=pointer]:
+              - /url: https://github.com/thedotmack/claude-mem
+        - generic [ref=e223]: "96"
+      - generic [ref=e225]:
+        - generic [ref=e226]:
+          - 'link "SIM1: Physics-Aligned Simulator as Zero-Shot Data Scaler in Deformable Worlds" [ref=e227] [cursor=pointer]':
+            - /url: /item/379
+          - generic [ref=e228]:
+            - generic [ref=e229]: arxiv
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e230] [cursor=pointer]:
+              - /url: http://arxiv.org/abs/2604.08544v1
+        - generic [ref=e231]: "96"
+      - generic [ref=e233]:
+        - generic [ref=e234]:
+          - link "dealignai/Gemma-4-31B-JANG_4M-CRACK" [ref=e235] [cursor=pointer]:
+            - /url: /item/477
+          - generic [ref=e236]:
+            - generic [ref=e237]: huggingface
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e238] [cursor=pointer]:
+              - /url: https://huggingface.co/dealignai/Gemma-4-31B-JANG_4M-CRACK
+        - generic [ref=e239]: "96"
+      - generic [ref=e241]:
+        - generic [ref=e242]:
+          - link "Important machine learning equations" [ref=e243] [cursor=pointer]:
+            - /url: /item/608
+          - generic [ref=e244]:
+            - generic [ref=e245]: hackernews
+            - text: Seen 2x ·
+            - link "↗ source" [ref=e246] [cursor=pointer]:
+              - /url: https://chizkidd.github.io//2025/05/30/machine-learning-key-math-eqns/
+        - generic [ref=e247]: "96"

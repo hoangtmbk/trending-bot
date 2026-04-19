@@ -26,7 +26,7 @@ def test_reddit_collector_returns_raw_items():
     mock_reddit = MagicMock()
     mock_reddit.subreddit.return_value = mock_subreddit
 
-    with patch("collectors.reddit.praw.Reddit", return_value=mock_reddit):
+    with patch("praw.Reddit", return_value=mock_reddit):
         collector = RedditCollector(
             client_id="fake", client_secret="fake",
             user_agent="test", subreddits=["MachineLearning"],
@@ -44,7 +44,7 @@ def test_reddit_collector_saves_to_file(tmp_data_dir):
     mock_reddit = MagicMock()
     mock_reddit.subreddit.return_value = mock_subreddit
 
-    with patch("collectors.reddit.praw.Reddit", return_value=mock_reddit):
+    with patch("praw.Reddit", return_value=mock_reddit):
         collector = RedditCollector(
             client_id="fake", client_secret="fake",
             user_agent="test", subreddits=["MachineLearning"],

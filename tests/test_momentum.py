@@ -69,14 +69,6 @@ def test_huggingface_momentum():
     assert score > 0
 
 
-def test_twitter_momentum():
-    item = RawItem(title="test", url="http://test.com", source="twitter",
-                   description="", metrics={"retweets": 1200, "quotes": 300},
-                   timestamp="2026-04-08T01:00:00Z")
-    score = compute_momentum_score(item)
-    assert score > 0
-
-
 def test_final_score_with_cross_platform_boost():
     boost_config = {2: 1.5, 3: 2.5, 4: 4.0}
     score = compute_final_score(

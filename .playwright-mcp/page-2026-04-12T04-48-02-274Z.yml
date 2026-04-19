@@ -1,0 +1,52 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "AI Trending Bot" [level=1] [ref=e3]:
+      - link "AI Trending Bot" [ref=e4] [cursor=pointer]:
+        - /url: index.html
+    - navigation [ref=e5]:
+      - combobox [ref=e6] [cursor=pointer]:
+        - option "2026-04-12" [selected]
+        - option "2026-04-09"
+  - main [ref=e7]:
+    - heading "The highest-scoring AI memory system ever benchmarked. And it's free." [level=2] [ref=e8]
+    - link "https://github.com/MemPalace/mempalace" [ref=e9] [cursor=pointer]:
+      - /url: https://github.com/MemPalace/mempalace
+    - generic [ref=e10]:
+      - heading "What It Is" [level=3] [ref=e11]
+      - paragraph [ref=e12]: MemPalace is an open-source, local-first AI memory system that stores raw verbatim conversations in ChromaDB and organizes them via a 'memory palace' metaphor (wings/halls/rooms metadata) for semantic retrieval. It claims a 96.6% R@5 score on the LongMemEval benchmark in raw verbatim mode with zero API calls, running entirely on the user's machine.
+    - generic [ref=e13]:
+      - heading "Why It's Trending" [level=3] [ref=e14]
+      - paragraph [ref=e15]: The repo hit 41k+ stars on the back of a headline 'highest-ever LongMemEval score, free and local' claim, then went viral again when maintainers publicly corrected overstated AAAK compression and 'palace boost' numbers within hours of launch — the transparency post itself drove more engagement.
+    - generic [ref=e16]:
+      - heading "Pain Point" [level=3] [ref=e17]
+      - paragraph [ref=e18]: "Every AI session resets context: months of debugging, architecture debates, and decisions evaporate when the chat ends. Existing memory systems try to fix this by having an LLM extract 'facts' (e.g., 'user prefers Postgres') but discard the reasoning behind them, so users lose the *why* and can't audit or reconstruct prior thinking."
+    - generic [ref=e19]:
+      - heading "Gap Analysis" [level=3] [ref=e20]
+      - paragraph [ref=e21]: AAAK compression regresses 12.4 points vs raw mode, so the 'compression' story is unproven. Raw verbatim storage will balloon on real long-term use — there's no tiered retention, time-decay, or cost-aware eviction strategy. Contradiction detection and Haiku rerank exist as orphan utilities, not in the public pipeline. Also no multi-device sync, no integration with IDE/chat export formats (Claude/ChatGPT/Cursor), and no review UI for humans to browse their own palace.
+    - generic [ref=e22]:
+      - heading "Competitors" [level=3] [ref=e23]
+      - list [ref=e24]:
+        - listitem [ref=e25]: mem0
+        - listitem [ref=e26]: Zep
+        - listitem [ref=e27]: MemGPT / Letta
+        - listitem [ref=e28]: Cognee
+        - listitem [ref=e29]: LangChain Memory
+        - listitem [ref=e30]: EngramMemory
+        - listitem [ref=e31]: Rewind.ai
+        - listitem [ref=e32]: Pieces for Developers
+        - listitem [ref=e33]: Supermemory
+    - generic [ref=e34]:
+      - heading "Proposed Solution" [level=3] [ref=e35]
+      - paragraph [ref=e36]: "Build 'Palace Sync' — a local-first desktop app that auto-ingests Claude Code, ChatGPT, Cursor, and Windsurf session exports into a MemPalace-compatible store, then adds the missing layer: a timeline/review UI where you can browse past decisions by project, ask 'what did we decide about auth last November?', and get a rerank-boosted answer with verbatim citations. Monetize via a paid tier for cross-device encrypted sync and team palaces, keeping the core engine open and MemPalace-compatible."
+    - generic [ref=e37]:
+      - heading "Feasibility" [level=3] [ref=e38]
+      - list [ref=e39]:
+        - listitem [ref=e40]:
+          - strong [ref=e41]: "Effort:"
+          - text: 4-6 weeks
+        - listitem [ref=e42]:
+          - strong [ref=e43]: "Market:"
+          - text: growing
+        - listitem [ref=e44]:
+          - strong [ref=e45]: "Competition:"
+          - text: high

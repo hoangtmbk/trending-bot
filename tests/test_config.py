@@ -27,9 +27,6 @@ sources:
     categories: [cs.AI]
   huggingface:
     enabled: true
-  twitter:
-    enabled: false
-    fallback_to_rss: true
   hackernews:
     enabled: true
 delivery:

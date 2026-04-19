@@ -1,0 +1,128 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "AI Trending Bot" [level=1] [ref=e3]
+    - navigation [ref=e4]:
+      - combobox [ref=e5] [cursor=pointer]:
+        - option "2026-04-12" [selected]
+        - option "2026-04-09"
+  - main [ref=e6]:
+    - generic [ref=e7]:
+      - heading "Today's Digest (15 items)" [level=2] [ref=e8]
+      - textbox "Search items..." [ref=e9]
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - link "google/gemma-4-31B-it" [ref=e12] [cursor=pointer]:
+            - /url: https://huggingface.co/google/gemma-4-31B-it
+          - generic [ref=e13]: 9/10
+        - paragraph [ref=e14]: Google Gemma 4 31B instruction-tuned multimodal model — major open-weights release if genuine
+        - generic [ref=e16]: huggingface
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - 'link "Show HN: Meta-agent: self-improving agent harnesses from live traces" [ref=e19] [cursor=pointer]':
+            - /url: show-hn-meta-agent-self-improving-agent-harnesses-from-live-.html
+          - generic [ref=e20]: 8/10
+        - paragraph [ref=e21]: Meta-agent harness that self-improves from live execution traces — novel take on agent learning loops
+        - generic [ref=e22]:
+          - generic [ref=e23]: hackernews
+          - generic [ref=e24]: github
+          - generic [ref=e25]: DEEP DIVE
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - link "MiniMaxAI/MiniMax-M2.7" [ref=e28] [cursor=pointer]:
+            - /url: minimaxai-minimax-m2-7.html
+          - generic [ref=e29]: 8/10
+        - paragraph [ref=e30]: MiniMax M2.7 text-generation model release; MiniMax has shipped competitive open models previously
+        - generic [ref=e31]:
+          - generic [ref=e32]: huggingface
+          - generic [ref=e33]: reddit
+          - generic [ref=e34]: DEEP DIVE
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - 'link "How We Broke Top AI Agent Benchmarks: And What Comes Next" [ref=e37] [cursor=pointer]':
+            - /url: how-we-broke-top-ai-agent-benchmarks-and-what-comes-next.html
+          - generic [ref=e38]: 8/10
+        - paragraph [ref=e39]: Berkeley RDI on breaking top agent benchmarks — important for trustworthy evaluation
+        - generic [ref=e40]:
+          - generic [ref=e41]: hackernews
+          - generic [ref=e42]: DEEP DIVE
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - link "AI assistance when contributing to the Linux kernel" [ref=e45] [cursor=pointer]:
+            - /url: https://github.com/torvalds/linux/blob/master/Documentation/process/coding-assistants.rst
+          - generic [ref=e46]: 8/10
+        - paragraph [ref=e47]: Linux kernel adds official guidance on AI coding assistant usage in contributions — landmark policy
+        - generic [ref=e49]: hackernews
+      - generic [ref=e50]:
+        - generic [ref=e51]:
+          - link "mistralai/Voxtral-4B-TTS-2603" [ref=e52] [cursor=pointer]:
+            - /url: https://huggingface.co/mistralai/Voxtral-4B-TTS-2603
+          - generic [ref=e53]: 8/10
+        - paragraph [ref=e54]: Mistral Voxtral-4B TTS release — Mistral's entry into speech synthesis
+        - generic [ref=e56]: huggingface
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - link "The highest-scoring AI memory system ever benchmarked. And it's free." [ref=e59] [cursor=pointer]:
+            - /url: the-highest-scoring-ai-memory-system-ever-benchmarked-and-it.html
+          - generic [ref=e60]: 7/10
+        - paragraph [ref=e61]: MemPalace claims top-benchmarked open-source AI memory system; high momentum warrants verification of benchmark claims
+        - generic [ref=e62]:
+          - generic [ref=e63]: github
+          - generic [ref=e64]: DEEP DIVE
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - link "Your own personal AI assistant. Any OS. Any Platform. The lobster way. 🦞" [ref=e67] [cursor=pointer]:
+            - /url: your-own-personal-ai-assistant-any-os-any-platform-the-lobst.html
+          - generic [ref=e68]: 7/10
+        - paragraph [ref=e69]: "openclaw: cross-platform personal AI assistant gaining fast GitHub traction"
+        - generic [ref=e70]:
+          - generic [ref=e71]: github
+          - generic [ref=e72]: DEEP DIVE
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - link "Lightricks/LTX-2.3" [ref=e75] [cursor=pointer]:
+            - /url: https://huggingface.co/Lightricks/LTX-2.3
+          - generic [ref=e76]: 7/10
+        - paragraph [ref=e77]: Lightricks LTX-2.3 image-to-video model release; LTX line is a leading open video generator
+        - generic [ref=e79]: huggingface
+      - generic [ref=e80]:
+        - generic [ref=e81]:
+          - link "The agent that grows with you" [ref=e82] [cursor=pointer]:
+            - /url: https://github.com/NousResearch/hermes-agent
+          - generic [ref=e83]: 7/10
+        - paragraph [ref=e84]: NousResearch Hermes agent — growing/learning agent from credible open-source lab
+        - generic [ref=e86]: github
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - link "OpenViking is an open-source context database designed specifically for AI Agents(such as openclaw). OpenViking unifies the management of context (memory, resources, and skills) that Agents need through a file system paradigm, enabling hierarchical context delivery and self-evolving." [ref=e89] [cursor=pointer]:
+            - /url: https://github.com/volcengine/OpenViking
+          - generic [ref=e90]: 7/10
+        - paragraph [ref=e91]: "OpenViking: filesystem-paradigm context database for AI agents from Volcengine (ByteDance)"
+        - generic [ref=e93]: github
+      - generic [ref=e94]:
+        - generic [ref=e95]:
+          - 'link "\"🐈 nanobot: The Ultra-Lightweight Personal AI Agent\"" [ref=e96] [cursor=pointer]':
+            - /url: https://github.com/HKUDS/nanobot
+          - generic [ref=e97]: 6/10
+        - paragraph [ref=e98]: "nanobot: ultra-lightweight personal agent from HKUDS research group"
+        - generic [ref=e100]: github
+      - generic [ref=e101]:
+        - generic [ref=e102]:
+          - link "omo; the best agent harness - previously oh-my-opencode" [ref=e103] [cursor=pointer]:
+            - /url: https://github.com/code-yeongyu/oh-my-openagent
+          - generic [ref=e104]: 6/10
+        - paragraph [ref=e105]: "omo (formerly oh-my-opencode): agent harness framework"
+        - generic [ref=e107]: github
+      - generic [ref=e108]:
+        - generic [ref=e109]:
+          - link "OpenAI backs Illinois bill that would limit when AI labs can be held liable" [ref=e110] [cursor=pointer]:
+            - /url: https://www.wired.com/story/openai-backs-bill-exempt-ai-firms-model-harm-lawsuits/
+          - generic [ref=e111]: 6/10
+        - paragraph [ref=e112]: OpenAI backing Illinois bill limiting AI lab liability — notable regulatory development
+        - generic [ref=e114]: hackernews
+      - generic [ref=e115]:
+        - generic [ref=e116]:
+          - link "Workers in some Indian factories have started wearing cameras on their heads to record their movements so robots can be trained using the footage." [ref=e117] [cursor=pointer]:
+            - /url: https://reddit.com/r/singularity/comments/1sitb37/workers_in_some_indian_factories_have_started/
+          - generic [ref=e118]: 6/10
+        - paragraph [ref=e119]: Indian factory workers wearing head cameras to generate humanoid robot training data — notable embodied AI data pipeline
+        - generic [ref=e121]: reddit

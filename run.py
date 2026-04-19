@@ -15,7 +15,6 @@ from collectors.github import GitHubCollector
 from collectors.reddit import RedditCollector, RedditPublicCollector
 from collectors.arxiv import ArxivCollector
 from collectors.huggingface import HuggingFaceCollector
-from collectors.twitter import TwitterCollector
 from scoring.momentum import compute_momentum_score, compute_final_score, normalize_by_source
 from scoring.dedup import deduplicate
 from scoring.llm_filter import run_llm_filter
@@ -115,10 +114,6 @@ class Pipeline:
 
         if sources.get("huggingface", {}).get("enabled"):
             collectors.append(HuggingFaceCollector())
-
-        if sources.get("twitter", {}).get("enabled"):
-            fallback = sources["twitter"].get("fallback_to_rss", True)
-            collectors.append(TwitterCollector(fallback_to_rss=fallback))
 
         all_items: list[RawItem] = []
         with ThreadPoolExecutor(max_workers=6) as executor:
@@ -295,7 +290,20 @@ class Pipeline:
         return []
 
     def _load_digest(self) -> list[ScoredItem]:
-        return self._load_deep_dive_items()
+        ranked_path = self.data_dir / "scored" / "ranked.json"
+        if not ranked_path.exists():
+            return []
+        data = json.loads(ranked_path.read_text())
+        items = []
+        for d in data:
+            raw_items = [RawItem.from_dict(r) for r in d.get("raw_items", [])]
+            items.append(ScoredItem(
+                raw_items=raw_items, momentum_score=d["momentum_score"],
+                final_score=d["final_score"], sources=d["sources"],
+                category=d.get("category", ""), llm_summary=d.get("llm_summary", ""),
+                interest_score=d.get("interest_score", 0),
+            ))
+        return items
 
     def _load_reports(self):
         from models import AnalysisReport

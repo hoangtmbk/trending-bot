@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 SOURCE_BADGES = {
     "github": "⭐", "reddit": "💬", "arxiv": "📄",
-    "huggingface": "🤗", "twitter": "𝕏", "hackernews": "🔶",
+    "huggingface": "🤗", "hackernews": "🔶",
 }
 
 

@@ -46,9 +46,6 @@ sources:
       - stat.ML
   huggingface:
     enabled: true
-  twitter:
-    enabled: true
-    fallback_to_rss: true
   hackernews:
     enabled: true
 
@@ -73,8 +70,6 @@ orchestrator:
     huggingface_scout:
       schedule: "0 */6 * * *"
     hackernews_scout:
-      schedule: "0 */4 * * *"
-    twitter_scout:
       schedule: "0 */4 * * *"
     scorer:
       schedule: "on_demand"

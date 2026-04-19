@@ -46,12 +46,6 @@ def compute_momentum_score(item: RawItem) -> float:
         likes = m.get("likes", 0)
         return downloads / max(downloads, 100) + likes / max(likes, 10)
 
-    elif source == "twitter":
-        retweets = m.get("retweets", 0)
-        quotes = m.get("quotes", 0)
-        hours = _hours_since(item.timestamp)
-        return (retweets + quotes) / hours
-
     else:
         logger.warning(f"Unknown source: {source}")
         return 0.0

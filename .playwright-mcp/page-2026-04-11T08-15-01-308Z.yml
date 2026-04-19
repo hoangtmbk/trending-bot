@@ -1,0 +1,19 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - text: TrendBot
+    - link "Dashboard" [ref=e3] [cursor=pointer]:
+      - /url: /
+    - link "Topics" [ref=e4] [cursor=pointer]:
+      - /url: /topics
+  - generic [ref=e5]:
+    - link "← Back" [ref=e7] [cursor=pointer]:
+      - /url: /
+    - 'heading "Tell HN: Anthropic no longer allowing Claude Code subscriptions to use OpenClaw" [level=1] [ref=e8]'
+    - generic [ref=e9]:
+      - generic [ref=e10]: hackernews
+      - text: "Score: 100 · Seen 2x · First seen: 2026-04-11 ·"
+      - link "↗ source" [ref=e11] [cursor=pointer]:
+        - /url: https://news.ycombinator.com/item?id=47633396
+    - generic [ref=e12]:
+      - heading "Score History" [level=3] [ref=e13]
+      - generic [ref=e14]: "2026-04-11T08:13 — Momentum: 6.19 · Normalized: 0"
