@@ -16,6 +16,7 @@ import argparse
 import asyncio
 import logging
 import logging.handlers
+import os
 import threading
 import time
 from pathlib import Path
@@ -225,8 +226,10 @@ def main() -> None:
 
     config = load_config()
 
-    # Database
-    db_path = config.get("orchestrator", {}).get("db_path", "trendbot.db")
+    # Database path: TRENDBOT_DB env wins over config, enabling deploy-time
+    # overrides without editing config.yaml.
+    db_path = os.environ.get("TRENDBOT_DB") or \
+        config.get("orchestrator", {}).get("db_path", "trendbot.db")
     db = Database(db_path)
     db.initialize()
     logger.info(f"Database: {db_path}")
