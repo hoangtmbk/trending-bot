@@ -12,6 +12,49 @@ from db.queries import get_items, get_items_with_filter, get_item_by_id, get_sco
 
 logger = logging.getLogger(__name__)
 
+BOOKMARK_DELTA = 0.1
+DISMISS_DELTA = -0.05
+WEIGHT_MIN = 0.1
+WEIGHT_MAX = 5.0
+
+
+def _adjust_topic_weights_for_item(db: Database, item_id: int, action: str) -> None:
+    """Bump or decay user_interests.weight for each topic attached to this item.
+
+    bookmarked → +0.1; dismissed → −0.05. Bounded to [0.1, 5.0] so runaway
+    interactions can't dominate the ranking.
+    """
+    delta = BOOKMARK_DELTA if action == "bookmarked" else DISMISS_DELTA
+    with db.connect() as conn:
+        topic_rows = conn.execute(
+            "SELECT topic_id FROM item_topics WHERE item_id=?",
+            (item_id,),
+        ).fetchall()
+        if not topic_rows:
+            return
+
+        for row in topic_rows:
+            topic_id = row["topic_id"]
+            existing = conn.execute(
+                "SELECT weight FROM user_interests WHERE topic_id=?",
+                (topic_id,),
+            ).fetchone()
+            if existing is None:
+                new_weight = max(WEIGHT_MIN, min(WEIGHT_MAX, 1.0 + delta))
+                conn.execute(
+                    "INSERT INTO user_interests (topic_id, weight, source, updated_at) "
+                    "VALUES (?, ?, 'inferred', datetime('now'))",
+                    (topic_id, new_weight),
+                )
+            else:
+                new_weight = max(WEIGHT_MIN, min(WEIGHT_MAX, existing["weight"] + delta))
+                conn.execute(
+                    "UPDATE user_interests SET weight=?, updated_at=datetime('now') "
+                    "WHERE topic_id=?",
+                    (new_weight, topic_id),
+                )
+        conn.commit()
+
 
 def create_app(db: Database, config: dict) -> FastAPI:
     app = FastAPI(title="TrendBot", description="Personal AI Trends Assistant")
@@ -90,6 +133,11 @@ def create_app(db: Database, config: dict) -> FastAPI:
                 (item_id, action, json.dumps(body.get("payload", {}))),
             )
             conn.commit()
+
+        # Close the feedback loop: bookmarks/dismisses adjust topic weights
+        # so the scorer preferentially surfaces topics the user likes.
+        if action in ("bookmarked", "dismissed"):
+            _adjust_topic_weights_for_item(db, item_id, action)
 
         if action == "deep_dive_requested":
             enqueue_task(db, agent_type="deep_diver", payload={"item_id": item_id})
