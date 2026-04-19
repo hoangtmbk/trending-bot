@@ -153,6 +153,57 @@ class TestTrendScorer:
         assert len(reddit_items) == 1
         assert len(arxiv_items) == 1
 
+    def test_topic_affinity_boosts_final_score(self, db, event_bus):
+        """user_interests.weight for an item's topic multiplies its final score.
+
+        Why: even items we filter-approve come from different topic areas;
+        user_interests lets us prefer topics the user bookmarks more often."""
+        from agents.analysts.scorer import TrendScorer
+
+        # Filler items so percentile normalization spreads correctly.
+        for i in range(3):
+            upsert_item(db, url=f"https://github.com/filler/{i}",
+                        title=f"Filler {i}", source="github", description="",
+                        raw_metrics={"stargazers_count": 10, "age_days": 365})
+
+        topic_item = upsert_item(db, url="https://github.com/loved/topic",
+                                 title="Loved topic", source="github",
+                                 description="",
+                                 raw_metrics={"stargazers_count": 5000, "age_days": 2})
+        other_item = upsert_item(db, url="https://github.com/other/hot",
+                                 title="Other hot", source="github",
+                                 description="",
+                                 raw_metrics={"stargazers_count": 5000, "age_days": 2})
+
+        # Create topic + user interest + attach only to topic_item.
+        with db.connect() as conn:
+            conn.execute("INSERT INTO topics (name, created_at) VALUES ('loved', datetime('now'))")
+            topic_id = conn.execute("SELECT id FROM topics WHERE name='loved'").fetchone()["id"]
+            conn.execute(
+                "INSERT INTO user_interests (topic_id, weight, updated_at) VALUES (?, 3.0, datetime('now'))",
+                (topic_id,),
+            )
+            conn.execute(
+                "INSERT INTO item_topics (item_id, topic_id, confidence) VALUES (?, ?, 1.0)",
+                (topic_item, topic_id),
+            )
+            conn.commit()
+
+        ctx = AgentContext(
+            db=db, event_bus=event_bus,
+            config={"scoring": {
+                "freshness_half_life_hours": 999999,
+                "cross_platform_boost": {2: 1.5, 3: 2.5, 4: 4.0},
+            }},
+        )
+        TrendScorer().execute(ctx)
+
+        loved = get_item_by_url(db, "https://github.com/loved/topic")
+        other = get_item_by_url(db, "https://github.com/other/hot")
+        # Both are top of their source with same raw momentum → percentile 100.
+        # Loved item has topic_weight=3 → should be ~3× the other item's score.
+        assert loved["normalized_score"] > other["normalized_score"] * 2.5
+
     def test_cross_platform_boost_fires_via_dedup(self, db, event_bus):
         """Two rows with fuzzy-matching titles from different sources should
         get num_sources=2 via dedup, so the 1.5× boost is applied to both.

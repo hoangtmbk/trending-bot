@@ -66,6 +66,20 @@ class TrendScorer(BaseAgent):
             for it in group:
                 url_to_num_sources[it.url] = n
 
+        # Topic-affinity weights: MAX(user_interests.weight) over an item's
+        # topics. Items without any item_topics row (filter hasn't run yet)
+        # keep the default 1.0. Single query, in-memory map.
+        item_topic_weights: dict[int, float] = {}
+        with ctx.db.connect() as conn:
+            rows = conn.execute(
+                "SELECT it.item_id, MAX(COALESCE(ui.weight, 1.0)) AS w "
+                "FROM item_topics it "
+                "LEFT JOIN user_interests ui ON ui.topic_id = it.topic_id "
+                "GROUP BY it.item_id"
+            ).fetchall()
+            for row in rows:
+                item_topic_weights[row["item_id"]] = float(row["w"])
+
         # Build (momentum, final, url) tuples and flush in one commit.
         # Persisting `final` (percentile × freshness × cross-platform boost)
         # as normalized_score — the old code computed it then threw it away.
@@ -84,12 +98,14 @@ class TrendScorer(BaseAgent):
 
             num_sources = url_to_num_sources.get(url, 1)
             prior = org_prior(url, priors_cfg)
+            topic_weight = item_topic_weights.get(db_item["id"], 1.0)
             final = compute_final_score(
                 momentum_score=norm_score,
                 age_hours=age_hours,
                 freshness_half_life=freshness_half_life,
                 num_sources=num_sources,
                 boost_config=boost_config,
+                topic_weight=topic_weight,
                 prior=prior,
             )
             update_rows.append((raw_score, final, url))
