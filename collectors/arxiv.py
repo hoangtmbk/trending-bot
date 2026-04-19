@@ -1,13 +1,11 @@
 from __future__ import annotations
 import logging
 import arxiv
-import requests
 from collectors.base import BaseCollector
+from collectors.semantic_scholar import fetch_citations
 from models import RawItem
 
 logger = logging.getLogger(__name__)
-
-S2_API = "https://api.semanticscholar.org/graph/v1/paper"
 
 
 class ArxivCollector(BaseCollector):
@@ -17,7 +15,7 @@ class ArxivCollector(BaseCollector):
         self.categories = categories or ["cs.AI", "cs.CL", "cs.CV", "cs.LG", "cs.MA", "stat.ML"]
 
     def collect(self) -> list[RawItem]:
-        items = []
+        items: list[RawItem] = []
         query = " OR ".join(f"cat:{cat}" for cat in self.categories)
         search = arxiv.Search(
             query=query,
@@ -28,37 +26,33 @@ class ArxivCollector(BaseCollector):
         client = arxiv.Client()
 
         try:
-            for result in client.results(search):
-                arxiv_id = result.entry_id.split("/abs/")[-1]
-                citation_data = self._get_citations(arxiv_id)
-                item = RawItem(
-                    title=result.title,
-                    url=result.entry_id,
-                    source=self.source_name,
-                    description=result.summary[:500],
-                    metrics={
-                        "arxiv_id": arxiv_id,
-                        "citation_count": citation_data.get("citationCount", 0),
-                        "influential_citations": citation_data.get("influentialCitationCount", 0),
-                        "categories": result.categories,
-                        "pdf_url": result.pdf_url,
-                    },
-                    timestamp=result.published.isoformat(),
-                )
-                items.append(item)
+            results = list(client.results(search))
         except Exception as e:
             logger.error(f"arXiv API error: {e}")
+            return []
 
-        logger.info(f"arXiv collector found {len(items)} papers")
+        # One batched Semantic Scholar lookup for all papers in this run —
+        # cuts 100 sequential HTTP calls down to one.
+        arxiv_ids = [r.entry_id.split("/abs/")[-1] for r in results]
+        citations = fetch_citations(arxiv_ids)
+
+        for result, arxiv_id in zip(results, arxiv_ids):
+            cit = citations.get(arxiv_id, {})
+            items.append(RawItem(
+                title=result.title,
+                url=result.entry_id,
+                source=self.source_name,
+                description=result.summary[:500],
+                metrics={
+                    "arxiv_id": arxiv_id,
+                    "citation_count": cit.get("citation_count", 0),
+                    "influential_citations": cit.get("influential_citations", 0),
+                    "categories": result.categories,
+                    "pdf_url": result.pdf_url,
+                },
+                timestamp=result.published.isoformat(),
+            ))
+
+        logger.info(f"arXiv collector found {len(items)} papers, "
+                    f"{sum(1 for i in items if i.metrics['citation_count'] > 0)} with citations")
         return items
-
-    def _get_citations(self, arxiv_id: str) -> dict:
-        try:
-            url = f"{S2_API}/ARXIV:{arxiv_id}"
-            params = {"fields": "citationCount,influentialCitationCount"}
-            resp = requests.get(url, params=params, timeout=10)
-            if resp.status_code == 200:
-                return resp.json()
-        except Exception as e:
-            logger.warning(f"Semantic Scholar lookup failed for {arxiv_id}: {e}")
-        return {"citationCount": 0, "influentialCitationCount": 0}
