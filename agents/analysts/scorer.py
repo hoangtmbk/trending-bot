@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import logging
 from agents.base import BaseAgent, AgentContext, AgentResult
-from db.queries import get_items, upsert_item
+from db.queries import get_items, bulk_update_scores
 
 logger = logging.getLogger(__name__)
 
@@ -52,25 +52,23 @@ class TrendScorer(BaseAgent):
         # Normalize per source
         normalized = normalize_by_source(raw_items, raw_scores)
 
-        # Compute final scores with actual age from first_seen
-        updated = 0
+        # Build (momentum, final, url) tuples and flush in one commit.
+        # Persisting `final` (percentile × freshness × cross-platform boost)
+        # as normalized_score — the old code computed it then threw it away.
+        now = datetime.now(timezone.utc)
+        update_rows: list[tuple[float, float, str]] = []
         for db_item in db_items:
             url = db_item["url"]
             norm_score = normalized.get(url, 0.0)
             raw_score = raw_scores.get(url, 0.0)
 
-            # Compute actual age in hours from first_seen
             try:
                 first_seen = datetime.fromisoformat(db_item["first_seen"])
-                age_hours = (datetime.now(timezone.utc) - first_seen).total_seconds() / 3600
+                age_hours = (now - first_seen).total_seconds() / 3600
             except (ValueError, TypeError):
                 age_hours = 24.0
 
-            # Count sources (times_seen > 1 could indicate cross-platform)
-            num_sources = db_item.get("times_seen", 1)
-            # Cap at reasonable value for boost
-            num_sources = min(num_sources, 4)
-
+            num_sources = min(db_item.get("times_seen", 1), 4)
             final = compute_final_score(
                 momentum_score=norm_score,
                 age_hours=age_hours,
@@ -78,20 +76,9 @@ class TrendScorer(BaseAgent):
                 num_sources=num_sources,
                 boost_config=boost_config,
             )
+            update_rows.append((raw_score, final, url))
 
-            # Update DB with new scores
-            upsert_item(
-                ctx.db,
-                url=url,
-                title=db_item["title"],
-                source=db_item["source"],
-                description=db_item.get("description", ""),
-                raw_metrics=json.loads(db_item["raw_metrics"]) if db_item["raw_metrics"] else {},
-                momentum_score=raw_score,
-                normalized_score=norm_score,
-            )
-            updated += 1
-
+        updated = bulk_update_scores(ctx.db, update_rows)
         ctx.emit("scores_updated", {"count": updated})
         return AgentResult(success=True, message=f"Scored {updated} items",
                            data={"scored_count": updated})

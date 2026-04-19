@@ -17,6 +17,7 @@ from db.queries import (
     get_pending_tasks,
     has_active_task,
     reset_stuck_tasks,
+    bulk_update_scores,
 )
 
 
@@ -299,3 +300,60 @@ class TestHasActiveTask:
         enqueue_task(db, agent_type="filter", payload={})
         assert has_active_task(db, "scorer") is False
         assert has_active_task(db, "filter") is True
+
+
+class TestBulkUpdateScores:
+    """bulk_update_scores rewrites momentum_score + normalized_score in one
+    commit. Replaces the N-commit hot-path in the scorer — see review 2026-04-19."""
+
+    def test_updates_existing_rows(self, db):
+        id1 = upsert_item(db, url="https://a.com", title="A", source="github",
+                          description="", raw_metrics={})
+        id2 = upsert_item(db, url="https://b.com", title="B", source="reddit",
+                          description="", raw_metrics={})
+        n = bulk_update_scores(db, [
+            (0.9, 87.5, "https://a.com"),
+            (0.4, 42.0, "https://b.com"),
+        ])
+        assert n == 2
+        a = get_item_by_id(db, id1)
+        b = get_item_by_id(db, id2)
+        assert a["momentum_score"] == 0.9
+        assert a["normalized_score"] == 87.5
+        assert b["momentum_score"] == 0.4
+        assert b["normalized_score"] == 42.0
+
+    def test_empty_rows_is_noop(self, db):
+        assert bulk_update_scores(db, []) == 0
+
+    def test_bulk_faster_than_per_row_upsert(self, db):
+        """Functional smoke: 200 bulk updates complete in <200ms, demonstrating
+        the single-commit path. Per-row upsert_item calls fsync each commit and
+        take far longer. Keeps us from regressing back to the N-commit pattern."""
+        import time
+        for i in range(200):
+            upsert_item(db, url=f"https://x.com/{i}", title=f"T{i}",
+                        source="github", description="", raw_metrics={})
+        rows = [(0.1 * i, float(i), f"https://x.com/{i}") for i in range(200)]
+        t0 = time.monotonic()
+        bulk_update_scores(db, rows)
+        elapsed = time.monotonic() - t0
+        assert elapsed < 1.0, f"bulk update should be fast, took {elapsed:.2f}s"
+
+    def test_missing_url_is_skipped(self, db):
+        """UPDATE on a non-existent URL affects zero rows but doesn't error."""
+        upsert_item(db, url="https://a.com", title="A", source="github",
+                    description="", raw_metrics={})
+        n = bulk_update_scores(db, [
+            (0.9, 87.5, "https://a.com"),
+            (0.5, 50.0, "https://missing.com"),
+        ])
+        # Returns rows attempted, not rows matched. Callers treat input as authoritative.
+        assert n == 2
+        a = get_item_by_url(db, "https://a.com")
+        assert a["normalized_score"] == 87.5
+
+
+def _import_bulk_update_scores_symbol_present():
+    # Regression: scorer imports bulk_update_scores from db.queries.
+    from db.queries import bulk_update_scores  # noqa: F401

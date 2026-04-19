@@ -307,6 +307,30 @@ def get_pending_tasks(db: Database, agent_type: str | None = None) -> list[dict]
     return [dict(row) for row in rows]
 
 
+def bulk_update_scores(
+    db: Database,
+    rows: list[tuple[float, float, str]],
+) -> int:
+    """Update momentum_score + normalized_score for many items by URL in one commit.
+
+    `rows` is a list of `(momentum_score, normalized_score, url)` tuples.
+    Single connection, `executemany`, single commit.
+
+    Why: calling `upsert_item` per item opens a new connection and commits
+    each time. For the scorer's 1.3k items that's 1.3k fsyncs and 400-1200s
+    wallclock. This gets the same work done in one commit.
+    """
+    if not rows:
+        return 0
+    with db.connect() as conn:
+        conn.executemany(
+            "UPDATE items SET momentum_score=?, normalized_score=? WHERE url=?",
+            rows,
+        )
+        conn.commit()
+    return len(rows)
+
+
 def has_active_task(db: Database, agent_type: str) -> bool:
     """Return True if a task of this type is pending OR running.
 
