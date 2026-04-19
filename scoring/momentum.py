@@ -90,12 +90,20 @@ def compute_final_score(
     freshness_half_life: float,
     num_sources: int,
     boost_config: dict[int, float],
+    topic_weight: float = 1.0,
+    prior: float = 1.0,
 ) -> float:
+    """Final score = momentum × freshness decay × cross-source boost × topic × prior.
+
+    `topic_weight` comes from user_interests (see C3). `prior` comes from
+    scoring.prior.org_prior (see C1) — a multiplier for canonical orgs and
+    trusted authors. Both default to 1.0 so existing callers keep working.
+    """
     freshness_decay = math.exp(-age_hours / freshness_half_life)
     boost = boost_config.get(num_sources, 1.0)
     if num_sources >= 4:
         boost = boost_config.get(4, 4.0)
-    return momentum_score * freshness_decay * boost
+    return momentum_score * freshness_decay * boost * topic_weight * prior
 
 
 def normalize_by_source(

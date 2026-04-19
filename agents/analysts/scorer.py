@@ -14,6 +14,7 @@ class TrendScorer(BaseAgent):
     def execute(self, ctx: AgentContext) -> AgentResult:
         from scoring.momentum import compute_momentum_score, compute_final_score, normalize_by_source
         from scoring.dedup import deduplicate
+        from scoring.prior import org_prior
         from models import RawItem
         from datetime import datetime, timedelta, timezone
 
@@ -21,6 +22,7 @@ class TrendScorer(BaseAgent):
         freshness_half_life = scoring_cfg.get("freshness_half_life_hours", 48)
         boost_config = scoring_cfg.get("cross_platform_boost", {2: 1.5, 3: 2.5, 4: 4.0})
         min_score = scoring_cfg.get("min_momentum_score", 0.3)
+        priors_cfg = scoring_cfg.get("org_priors", {})
 
         # Get all items seen in last 48 hours
         since = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
@@ -81,12 +83,14 @@ class TrendScorer(BaseAgent):
                 age_hours = 24.0
 
             num_sources = url_to_num_sources.get(url, 1)
+            prior = org_prior(url, priors_cfg)
             final = compute_final_score(
                 momentum_score=norm_score,
                 age_hours=age_hours,
                 freshness_half_life=freshness_half_life,
                 num_sources=num_sources,
                 boost_config=boost_config,
+                prior=prior,
             )
             update_rows.append((raw_score, final, url))
 

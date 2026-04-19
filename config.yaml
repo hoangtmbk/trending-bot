@@ -10,6 +10,26 @@ scoring:
     2: 1.5
     3: 2.5
     4: 4.0
+  # Per-org multipliers on the final score. Longer matches win — so
+  # github.com/openai beats github.com for an openai repo URL.
+  org_priors:
+    anthropic.com: 2.0
+    openai.com: 2.0
+    deepmind.google: 2.0
+    ai.meta.com: 1.8
+    huggingface.co/meta-llama: 1.8
+    huggingface.co/Qwen: 1.8
+    huggingface.co/mistralai: 1.8
+    huggingface.co/google: 1.6
+    mistral.ai: 1.8
+    cohere.com: 1.6
+    qwen.ai: 1.8
+    github.com/anthropics: 1.8
+    github.com/openai: 1.8
+    github.com/google-deepmind: 1.8
+    github.com/huggingface: 1.6
+    github.com/vllm-project: 1.5
+    github.com/ggerganov: 1.5
 
 sources:
   github:
