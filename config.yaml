@@ -68,6 +68,17 @@ sources:
         url: https://cohere.com/blog/rss.xml
       - name: qwen
         url: https://qwen.ai/blog/feed.xml
+  newsletters:
+    enabled: true
+    feeds:
+      - name: import_ai
+        url: https://jack-clark.net/feed/
+      - name: interconnects
+        url: https://www.interconnects.ai/feed
+      - name: tldr_ai
+        url: https://tldr.tech/api/rss/ai
+      - name: the_rundown_ai
+        url: https://www.therundown.ai/feed
 
 delivery:
   telegram:
@@ -93,6 +104,8 @@ orchestrator:
       schedule: "0 */4 * * *"
     blog_scout:
       schedule: "0 */6 * * *"
+    newsletter_scout:
+      schedule: "0 */12 * * *"
     scorer:
       schedule: "on_demand"
     filter:

@@ -33,6 +33,7 @@ from agents.scouts.arxiv_scout import ArxivScout
 from agents.scouts.huggingface_scout import HuggingFaceScout
 from agents.scouts.hackernews_scout import HackerNewsScout
 from agents.scouts.blog_scout import BlogScout
+from agents.scouts.newsletter_scout import NewsletterScout
 from agents.analysts.scorer import TrendScorer
 from agents.analysts.filter import RelevanceFilter
 from agents.analysts.connector import DotConnector
@@ -98,6 +99,7 @@ def _register_all_agents(app: Application) -> None:
         HuggingFaceScout(),
         HackerNewsScout(),
         BlogScout(),
+        NewsletterScout(),
         TrendScorer(),
         RelevanceFilter(),
         DotConnector(),
@@ -194,7 +196,8 @@ def _run_now(app: Application) -> None:
     from agents.base import AgentContext
 
     scouts = ["github_scout", "reddit_scout", "arxiv_scout",
-              "huggingface_scout", "hackernews_scout", "blog_scout"]
+              "huggingface_scout", "hackernews_scout",
+              "blog_scout", "newsletter_scout"]
 
     logger.info("── Running initial collection cycle ──")
     for name in scouts:
