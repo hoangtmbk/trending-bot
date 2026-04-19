@@ -42,6 +42,7 @@ from agents.analysts.scorer import TrendScorer
 from agents.analysts.filter import RelevanceFilter
 from agents.analysts.connector import DotConnector
 from agents.analysts.interest_adjuster import InterestAdjuster
+from agents.analysts.topic_velocity import TopicVelocityAgent
 from agents.researchers.deep_diver import DeepDiver
 from agents.researchers.topic_tracker import TopicTracker
 from agents.researchers.competitor_watch import CompetitorWatcher
@@ -111,6 +112,7 @@ def _register_all_agents(app: Application) -> None:
         TrendScorer(),
         RelevanceFilter(),
         DotConnector(),
+        TopicVelocityAgent(),
         InterestAdjuster(),
         DeepDiver(),
         TopicTracker(),

@@ -162,6 +162,8 @@ orchestrator:
       schedule: "on_demand"
     dot_connector:
       schedule: "0 3 * * *"
+    topic_velocity:
+      schedule: "0 */4 * * *"
     deep_diver:
       schedule: "on_demand"
     topic_tracker:

@@ -126,3 +126,16 @@ CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,
     applied_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS topic_velocity (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_id        INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+    window_hours    INTEGER NOT NULL,
+    item_count      INTEGER NOT NULL,
+    prev_count      INTEGER NOT NULL,
+    velocity_ratio  REAL NOT NULL,
+    recorded_at     TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_topic_velocity_recorded_at ON topic_velocity(recorded_at);
+CREATE INDEX IF NOT EXISTS idx_topic_velocity_topic ON topic_velocity(topic_id);
