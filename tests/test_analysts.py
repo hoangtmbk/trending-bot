@@ -153,6 +153,61 @@ class TestTrendScorer:
         assert len(reddit_items) == 1
         assert len(arxiv_items) == 1
 
+    def test_cross_platform_boost_fires_via_dedup(self, db, event_bus):
+        """Two rows with fuzzy-matching titles from different sources should
+        get num_sources=2 via dedup, so the 1.5× boost is applied to both.
+
+        Why: prior to wiring dedup in, num_sources was `times_seen` (same-URL
+        re-observations), so the cross_platform_boost in config.yaml never
+        fired. This locks the behaviour in place."""
+        from agents.analysts.scorer import TrendScorer
+
+        # Filler items so percentile normalization has a spread per source.
+        # Without filler, n=1 per source → percentile 0 for everything.
+        for i in range(3):
+            upsert_item(db, url=f"https://github.com/filler/{i}",
+                        title=f"Filler GH {i}", source="github", description="",
+                        raw_metrics={"stargazers_count": 10, "age_days": 365})
+            upsert_item(db, url=f"https://news.ycombinator.com/item?id={i}",
+                        title=f"Filler HN {i}", source="hackernews", description="",
+                        raw_metrics={"points": 5})
+            upsert_item(db, url=f"https://reddit.com/r/ml/filler{i}",
+                        title=f"Filler RD {i}", source="reddit", description="",
+                        raw_metrics={"score": 5})
+
+        # The duplicated pair (high momentum in its source).
+        upsert_item(db, url="https://github.com/anthropics/alpha-agent",
+                    title="Alpha Agent Framework Release",
+                    source="github", description="",
+                    raw_metrics={"stargazers_count": 5000, "age_days": 2})
+        upsert_item(db, url="https://news.ycombinator.com/item?id=42",
+                    title="Alpha Agent Framework Release",
+                    source="hackernews", description="",
+                    raw_metrics={"points": 500})
+        # Solo (high momentum, no cross-source match).
+        upsert_item(db, url="https://reddit.com/r/ml/solo",
+                    title="Totally different topic about quantization",
+                    source="reddit", description="",
+                    raw_metrics={"score": 500})
+
+        ctx = AgentContext(
+            db=db, event_bus=event_bus,
+            config={"scoring": {
+                "freshness_half_life_hours": 999999,  # effectively disable decay
+                "cross_platform_boost": {2: 1.5, 3: 2.5, 4: 4.0},
+            }},
+        )
+        TrendScorer().execute(ctx)
+
+        gh = get_item_by_url(db, "https://github.com/anthropics/alpha-agent")
+        hn = get_item_by_url(db, "https://news.ycombinator.com/item?id=42")
+        rd = get_item_by_url(db, "https://reddit.com/r/ml/solo")
+        # All three are top of their source → percentile 100 each.
+        # With freshness ≈1, boost is the only remaining factor.
+        assert gh["normalized_score"] > rd["normalized_score"]
+        assert hn["normalized_score"] > rd["normalized_score"]
+        assert gh["normalized_score"] / rd["normalized_score"] > 1.4
+
 
 # ========== RelevanceFilter ==========
 

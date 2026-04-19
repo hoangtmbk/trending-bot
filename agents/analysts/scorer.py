@@ -13,6 +13,7 @@ class TrendScorer(BaseAgent):
 
     def execute(self, ctx: AgentContext) -> AgentResult:
         from scoring.momentum import compute_momentum_score, compute_final_score, normalize_by_source
+        from scoring.dedup import deduplicate
         from models import RawItem
         from datetime import datetime, timedelta, timezone
 
@@ -52,6 +53,17 @@ class TrendScorer(BaseAgent):
         # Normalize per source
         normalized = normalize_by_source(raw_items, raw_scores)
 
+        # Fuzzy-title / URL deduplication to drive the cross-platform boost.
+        # A paper seen on arxiv + hf_papers + hackernews counts as 3 sources.
+        # `times_seen` counted same-URL re-observations only, which meant the
+        # boost configured in config.yaml never actually fired.
+        groups = deduplicate(raw_items)
+        url_to_num_sources: dict[str, int] = {}
+        for group in groups:
+            n = min(len({it.source for it in group}), 4)
+            for it in group:
+                url_to_num_sources[it.url] = n
+
         # Build (momentum, final, url) tuples and flush in one commit.
         # Persisting `final` (percentile × freshness × cross-platform boost)
         # as normalized_score — the old code computed it then threw it away.
@@ -68,7 +80,7 @@ class TrendScorer(BaseAgent):
             except (ValueError, TypeError):
                 age_hours = 24.0
 
-            num_sources = min(db_item.get("times_seen", 1), 4)
+            num_sources = url_to_num_sources.get(url, 1)
             final = compute_final_score(
                 momentum_score=norm_score,
                 age_hours=age_hours,
