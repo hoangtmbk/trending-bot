@@ -106,6 +106,11 @@ class DigestPusher(BaseAgent):
         return summaries, deep_dives
 
     def _select_items(self, ctx: AgentContext, limit: int) -> list[dict]:
+        """Pick tracked items whose filter analysis is newer than the last
+        digest. Orders by interest_score DESC then normalized_score DESC — so
+        the LLM's quality call leads, with topic-affinity (baked into
+        normalized_score via C3) as tiebreaker.
+        """
         with ctx.db.connect() as conn:
             last = conn.execute(
                 "SELECT created_at FROM digests WHERE digest_type='daily' "
@@ -113,24 +118,30 @@ class DigestPusher(BaseAgent):
             ).fetchone()
             cutoff = last["created_at"] if last else None
 
+            # Latest filter row per item (same pattern as get_items_with_filter).
+            query = """
+                SELECT i.*,
+                       CAST(json_extract(ia.content, '$.interest_score') AS INTEGER) AS interest_score
+                FROM items i
+                JOIN (
+                    SELECT item_id, MAX(created_at) AS max_created
+                    FROM item_analysis
+                    WHERE analysis_type = 'filter'
+                    GROUP BY item_id
+                ) latest ON latest.item_id = i.id
+                JOIN item_analysis ia
+                  ON ia.item_id = latest.item_id
+                 AND ia.analysis_type = 'filter'
+                 AND ia.created_at = latest.max_created
+                WHERE i.status = 'tracking'
+            """
+            params: list = []
             if cutoff:
-                rows = conn.execute(
-                    "SELECT i.* FROM items i "
-                    "JOIN item_analysis ia ON ia.item_id = i.id "
-                    "WHERE ia.analysis_type='filter' "
-                    "  AND ia.created_at > ? "
-                    "  AND i.status='tracking' "
-                    "GROUP BY i.id "
-                    "ORDER BY i.normalized_score DESC "
-                    "LIMIT ?",
-                    (cutoff, limit),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT * FROM items WHERE status='tracking' "
-                    "ORDER BY normalized_score DESC LIMIT ?",
-                    (limit,),
-                ).fetchall()
+                query += " AND ia.created_at > ?"
+                params.append(cutoff)
+            query += " ORDER BY interest_score DESC, i.normalized_score DESC LIMIT ?"
+            params.append(limit)
+            rows = conn.execute(query, params).fetchall()
         return [dict(r) for r in rows]
 
     def _record_digest(self, ctx: AgentContext, items: list[dict]) -> None:
