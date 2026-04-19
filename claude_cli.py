@@ -9,10 +9,18 @@ logger = logging.getLogger(__name__)
 _FENCED_JSON_RE = re.compile(r"```(?:json)?\s*\n(.*?)\n```", re.DOTALL)
 
 
-def call_claude(prompt: str, retries: int = 2, model: str | None = None) -> str:
+def call_claude(
+    prompt: str,
+    retries: int = 2,
+    model: str | None = None,
+    allowed_tools: list[str] | None = None,
+) -> str:
     cmd = ["claude", "-p", prompt]
     if model:
         cmd.extend(["--model", model])
+    if allowed_tools:
+        # Claude Code CLI expects space-separated tool names in one arg.
+        cmd.extend(["--allowedTools", " ".join(allowed_tools)])
 
     last_rc = None
     last_stdout = ""
@@ -75,10 +83,15 @@ def _extract_json(raw: str) -> dict:
     return json.loads(text)
 
 
-def call_claude_json(prompt: str, retries: int = 2, model: str | None = None) -> dict:
+def call_claude_json(
+    prompt: str,
+    retries: int = 2,
+    model: str | None = None,
+    allowed_tools: list[str] | None = None,
+) -> dict:
     last_err: Exception | None = None
     for attempt in range(retries):
-        raw = call_claude(prompt, retries=1, model=model)
+        raw = call_claude(prompt, retries=1, model=model, allowed_tools=allowed_tools)
         try:
             return _extract_json(raw)
         except (json.JSONDecodeError, ValueError) as e:

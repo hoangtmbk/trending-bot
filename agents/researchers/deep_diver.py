@@ -62,7 +62,13 @@ class DeepDiver(BaseAgent):
 
         try:
             from claude_cli import call_claude_json
-            result = call_claude_json(prompt)
+            # Enable WebSearch + WebFetch so the analyst can look up competitor
+            # projects, recent benchmarks, and author track record instead of
+            # only seeing the scraped README/metadata.
+            result = call_claude_json(
+                prompt,
+                allowed_tools=["WebSearch", "WebFetch"],
+            )
         except Exception as e:
             return AgentResult(success=False, message=f"Claude CLI failed: {e}")
 
