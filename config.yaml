@@ -81,6 +81,26 @@ sources:
         url: https://www.therundown.ai/feed
   hf_papers:
     enabled: true
+  lobsters:
+    enabled: true
+    url: https://lobste.rs/t/ai.rss
+  papers_with_code:
+    enabled: true
+  github_releases:
+    enabled: true
+    # Watched repos whose releases we care about. Keep this list tight —
+    # these become one item per release per repo.
+    repos:
+      - vllm-project/vllm
+      - ggerganov/llama.cpp
+      - huggingface/transformers
+      - anthropics/claude-code
+      - langchain-ai/langchain
+      - microsoft/autogen
+      - ollama/ollama
+      - pytorch/pytorch
+      - karpathy/nanogpt
+      - unslothai/unsloth
 
 delivery:
   telegram:
@@ -109,6 +129,12 @@ orchestrator:
     newsletter_scout:
       schedule: "0 */12 * * *"
     hf_papers_scout:
+      schedule: "0 */6 * * *"
+    lobsters_scout:
+      schedule: "0 */6 * * *"
+    papers_with_code_scout:
+      schedule: "0 */12 * * *"
+    github_releases_scout:
       schedule: "0 */6 * * *"
     scorer:
       schedule: "on_demand"

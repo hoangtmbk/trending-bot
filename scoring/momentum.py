@@ -51,6 +51,26 @@ def compute_momentum_score(item: RawItem) -> float:
         hours = _hours_since(item.timestamp)
         return upvotes / max(hours, 1)
 
+    elif source == "papers_with_code":
+        # GitHub stars on the paper's reference implementation — a signal
+        # that the paper is not just published but actually being used.
+        stars = m.get("github_stars", 0) or 0
+        hours = _hours_since(item.timestamp)
+        return stars / max(hours / 24.0, 1)
+
+    elif source == "lobsters":
+        # Lobsters RSS doesn't expose vote count; purely a recency signal
+        # against a high-S/N curated stream (invite-only community).
+        hours = _hours_since(item.timestamp)
+        return 1.5 / max(hours / 24.0, 0.1)
+
+    elif source == "github_release":
+        # A release published moments ago from a watched repo is high signal.
+        # No further metric — the repo selection in config already did the
+        # filtering.
+        hours = _hours_since(item.timestamp)
+        return 3.0 / max(hours / 24.0, 0.1)
+
     elif source in {"blog", "newsletter"}:
         # No numeric signal — pure recency. Boost newsletters since they're
         # already curated, and lab-blog posts for known orgs (prior comes
