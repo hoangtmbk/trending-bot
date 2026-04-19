@@ -48,6 +48,26 @@ sources:
     enabled: true
   hackernews:
     enabled: true
+  blogs:
+    enabled: true
+    # Broken feeds are logged & skipped. Add freely — the scout tolerates 404s.
+    feeds:
+      - name: anthropic
+        url: https://www.anthropic.com/news/rss.xml
+      - name: openai
+        url: https://openai.com/blog/rss.xml
+      - name: deepmind
+        url: https://deepmind.google/blog/rss.xml
+      - name: huggingface
+        url: https://huggingface.co/blog/feed.xml
+      - name: mistral
+        url: https://mistral.ai/news/rss.xml
+      - name: meta_ai
+        url: https://ai.meta.com/blog/rss/
+      - name: cohere
+        url: https://cohere.com/blog/rss.xml
+      - name: qwen
+        url: https://qwen.ai/blog/feed.xml
 
 delivery:
   telegram:
@@ -71,6 +91,8 @@ orchestrator:
       schedule: "0 */6 * * *"
     hackernews_scout:
       schedule: "0 */4 * * *"
+    blog_scout:
+      schedule: "0 */6 * * *"
     scorer:
       schedule: "on_demand"
     filter:

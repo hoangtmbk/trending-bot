@@ -46,6 +46,14 @@ def compute_momentum_score(item: RawItem) -> float:
         likes = m.get("likes", 0)
         return downloads / max(downloads, 100) + likes / max(likes, 10)
 
+    elif source in {"blog", "newsletter"}:
+        # No numeric signal — pure recency. Boost newsletters since they're
+        # already curated, and lab-blog posts for known orgs (prior comes
+        # from scoring/prior.py, applied later in compute_final_score).
+        hours = _hours_since(item.timestamp)
+        base = 2.0 if source == "newsletter" else 1.0
+        return base / max(hours / 24.0, 0.1)
+
     else:
         logger.warning(f"Unknown source: {source}")
         return 0.0
