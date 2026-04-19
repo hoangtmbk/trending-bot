@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from db.database import Database
-from db.queries import get_items, get_item_by_id, get_score_history, enqueue_task
+from db.queries import get_items, get_items_with_filter, get_item_by_id, get_score_history, enqueue_task
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +34,11 @@ def create_app(db: Database, config: dict) -> FastAPI:
     @app.get("/api/items")
     async def api_items(
         source: str | None = None,
-        status: str | None = None,
-        since: str | None = None,
         limit: int = Query(default=30, le=100),
+        min_interest: int = Query(default=6, ge=0, le=10),
     ):
-        items = get_items(db, source=source, status=status, since=since, limit=limit,
-                         order_by="normalized_score DESC")
+        items = get_items_with_filter(db, limit=limit, min_interest=min_interest,
+                                      source=source)
         for item in items:
             if item.get("raw_metrics"):
                 item["raw_metrics"] = json.loads(item["raw_metrics"])
@@ -179,7 +178,7 @@ def create_app(db: Database, config: dict) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     async def page_home(request: Request):
-        items = get_items(db, limit=30, order_by="normalized_score DESC")
+        items = get_items_with_filter(db, limit=30, min_interest=6)
         for item in items:
             if item.get("raw_metrics"):
                 item["raw_metrics"] = json.loads(item["raw_metrics"])

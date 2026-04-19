@@ -5,21 +5,28 @@
 <div id="items">
 {% for item in items %}
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: start;">
-        <div style="flex: 1;">
-            <a href="/item/{{ item.id }}" style="font-size: 16px; font-weight: 600;">{{ item.title[:100] }}</a>
+    <div style="display: flex; justify-content: space-between; align-items: start; gap: 16px;">
+        <div style="flex: 1; min-width: 0;">
+            <a href="/item/{{ item.id }}" style="font-size: 16px; font-weight: 600;">{{ item.title[:120] }}</a>
+            {% if item.llm_summary %}
+            <p style="margin: 6px 0; color: #cbd5e1; font-size: 14px;">{{ item.llm_summary }}</p>
+            {% endif %}
             <div class="meta" style="margin-top: 4px;">
                 <span class="badge badge-{{ item.source }}">{{ item.source }}</span>
-                Seen {{ item.times_seen }}x
+                {% if item.category %}<span class="badge" style="background:#334155;color:#e2e8f0;">{{ item.category }}</span>{% endif %}
+                <span style="margin-left: 6px;">Seen {{ item.times_seen }}x</span>
                 {% if item.url %} · <a href="{{ item.url }}" target="_blank">↗ source</a>{% endif %}
             </div>
         </div>
-        <div class="score">{{ "%.0f"|format(item.normalized_score) }}</div>
+        <div style="text-align: right; flex-shrink: 0;">
+            <div class="score">{{ item.interest_score }}<span style="color:#64748b;font-size:14px;">/10</span></div>
+            <div class="meta" style="font-size: 11px;">rank {{ "%.0f"|format(item.normalized_score) }}</div>
+        </div>
     </div>
 </div>
 {% endfor %}
 {% if not items %}
-<p class="meta">No items found. Run the scouts to start collecting data.</p>
+<p class="meta">No filter-approved items yet. The filter agent runs after each scoring pass — check back in a few cycles.</p>
 {% endif %}
 </div>
 {% endblock %}

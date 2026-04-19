@@ -69,6 +69,55 @@ _ALLOWED_ORDER_COLUMNS = {
 _ALLOWED_DIRECTIONS = {"ASC", "DESC"}
 
 
+def get_items_with_filter(
+    db: Database,
+    limit: int = 30,
+    min_interest: int = 6,
+    source: str | None = None,
+) -> list[dict]:
+    """Return items that have a recent filter verdict, joined with that verdict.
+
+    Gates on `novel=true AND ai_relevant=true AND interest_score >= min_interest`.
+    Order: interest_score DESC, normalized_score DESC. Each row includes
+    `llm_summary`, `interest_score`, `category` from the latest filter analysis.
+
+    Why: the bare `items` table is ordered by `normalized_score` which is just a
+    per-source percentile rank — top items are often low-signal ("lol", "Hollywood is
+    so screwed"). The filter agent already stores LLM verdicts in `item_analysis`;
+    this query surfaces them.
+    """
+    query = """
+        SELECT i.*,
+               json_extract(ia.content, '$.summary')        AS llm_summary,
+               CAST(json_extract(ia.content, '$.interest_score') AS INTEGER) AS interest_score,
+               json_extract(ia.content, '$.category')       AS category
+        FROM items i
+        JOIN (
+            SELECT item_id, MAX(created_at) AS max_created
+            FROM item_analysis
+            WHERE analysis_type = 'filter'
+            GROUP BY item_id
+        ) latest ON latest.item_id = i.id
+        JOIN item_analysis ia
+          ON ia.item_id = latest.item_id
+         AND ia.analysis_type = 'filter'
+         AND ia.created_at = latest.max_created
+        WHERE json_extract(ia.content, '$.novel') = 1
+          AND json_extract(ia.content, '$.ai_relevant') = 1
+          AND CAST(json_extract(ia.content, '$.interest_score') AS INTEGER) >= ?
+    """
+    params: list = [min_interest]
+    if source:
+        query += " AND i.source = ?"
+        params.append(source)
+    query += " ORDER BY interest_score DESC, i.normalized_score DESC LIMIT ?"
+    params.append(limit)
+
+    with db.connect() as conn:
+        rows = conn.execute(query, params).fetchall()
+    return [dict(row) for row in rows]
+
+
 def get_items(
     db: Database,
     source: str | None = None,

@@ -52,6 +52,25 @@ def seeded_client(seeded_db):
     return TestClient(app)
 
 
+@pytest.fixture
+def filtered_client(seeded_db):
+    """seeded_db plus filter analyses so /api/items and / return the seeded items."""
+    with seeded_db.connect() as conn:
+        for item_id, score in [(1, 8), (2, 7)]:
+            conn.execute(
+                "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+                "VALUES (?, 'filter', datetime('now'), ?)",
+                (item_id, json.dumps({
+                    "novel": True, "ai_relevant": True,
+                    "interest_score": score, "summary": f"Summary {item_id}",
+                    "category": "tool",
+                })),
+            )
+        conn.commit()
+    app = create_app(seeded_db, config={})
+    return TestClient(app)
+
+
 # ── GET /api/items ──
 
 class TestApiItems:
@@ -62,34 +81,111 @@ class TestApiItems:
         assert data["items"] == []
         assert data["count"] == 0
 
-    def test_with_data(self, seeded_client):
-        resp = seeded_client.get("/api/items")
+    def test_with_data(self, filtered_client):
+        resp = filtered_client.get("/api/items")
         assert resp.status_code == 200
         data = resp.json()
         assert data["count"] == 2
-        # Items should be ordered by normalized_score DESC
-        assert data["items"][0]["normalized_score"] == 85.0
-        assert data["items"][1]["normalized_score"] == 60.0
+        # Ordered by interest_score DESC (item 1 has 8, item 2 has 7).
+        assert data["items"][0]["interest_score"] == 8
+        assert data["items"][1]["interest_score"] == 7
 
-    def test_filter_by_source(self, seeded_client):
-        resp = seeded_client.get("/api/items?source=github")
+    def test_filter_by_source(self, filtered_client):
+        resp = filtered_client.get("/api/items?source=github")
         assert resp.status_code == 200
         data = resp.json()
         assert data["count"] == 1
         assert data["items"][0]["source"] == "github"
 
-    def test_limit(self, seeded_client):
-        resp = seeded_client.get("/api/items?limit=1")
+    def test_limit(self, filtered_client):
+        resp = filtered_client.get("/api/items?limit=1")
         assert resp.status_code == 200
         data = resp.json()
         assert data["count"] == 1
 
-    def test_raw_metrics_parsed(self, seeded_client):
-        resp = seeded_client.get("/api/items")
+    def test_raw_metrics_parsed(self, filtered_client):
+        resp = filtered_client.get("/api/items")
         data = resp.json()
         item = data["items"][0]
         assert isinstance(item["raw_metrics"], dict)
         assert "stars_24h" in item["raw_metrics"]
+
+
+def _insert_filter_analysis(db, item_id: int, *, novel=True, ai_relevant=True,
+                            interest_score=7, summary="S", category="tool"):
+    with db.connect() as conn:
+        conn.execute(
+            "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+            "VALUES (?, 'filter', datetime('now'), ?)",
+            (item_id, json.dumps({
+                "novel": novel, "ai_relevant": ai_relevant,
+                "interest_score": interest_score, "summary": summary,
+                "category": category,
+            })),
+        )
+        conn.commit()
+
+
+class TestFilterGatedItems:
+    """GET /api/items only returns items with a latest filter verdict,
+    gated on novel AND ai_relevant AND interest_score >= threshold.
+    Why: the bare items table ordered by normalized_score surfaces low-signal
+    Reddit chatter ('lol', 'Hollywood is so screwed') at the top — see review
+    2026-04-19."""
+
+    def test_excludes_unfiltered(self, seeded_client, seeded_db):
+        # Neither seeded item has a filter row yet.
+        resp = seeded_client.get("/api/items")
+        assert resp.json()["count"] == 0
+
+    def test_excludes_low_interest(self, seeded_client, seeded_db):
+        _insert_filter_analysis(seeded_db, 1, interest_score=3)
+        _insert_filter_analysis(seeded_db, 2, interest_score=7)
+        resp = seeded_client.get("/api/items")
+        data = resp.json()
+        assert data["count"] == 1
+        assert data["items"][0]["id"] == 2
+
+    def test_excludes_not_novel(self, seeded_client, seeded_db):
+        _insert_filter_analysis(seeded_db, 1, novel=False, interest_score=9)
+        _insert_filter_analysis(seeded_db, 2, interest_score=7)
+        resp = seeded_client.get("/api/items")
+        data = resp.json()
+        ids = [it["id"] for it in data["items"]]
+        assert 1 not in ids and 2 in ids
+
+    def test_returns_llm_summary_and_interest(self, seeded_client, seeded_db):
+        _insert_filter_analysis(seeded_db, 1, interest_score=8,
+                                summary="Why it matters", category="model")
+        resp = seeded_client.get("/api/items")
+        item = resp.json()["items"][0]
+        assert item["llm_summary"] == "Why it matters"
+        assert item["interest_score"] == 8
+        assert item["category"] == "model"
+
+    def test_orders_by_interest_then_score(self, seeded_client, seeded_db):
+        _insert_filter_analysis(seeded_db, 1, interest_score=7)  # normalized 85
+        _insert_filter_analysis(seeded_db, 2, interest_score=9)  # normalized 60
+        resp = seeded_client.get("/api/items")
+        ids = [it["id"] for it in resp.json()["items"]]
+        assert ids == [2, 1]
+
+    def test_uses_latest_filter_row(self, seeded_client, seeded_db):
+        # Insert an old low score, then a newer high score for the same item.
+        with seeded_db.connect() as conn:
+            conn.execute(
+                "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+                "VALUES (?, 'filter', '2020-01-01 00:00:00', ?)",
+                (1, json.dumps({"novel": True, "ai_relevant": True,
+                                "interest_score": 1, "summary": "old"})),
+            )
+            conn.commit()
+        _insert_filter_analysis(seeded_db, 1, interest_score=8, summary="new")
+        resp = seeded_client.get("/api/items")
+        data = resp.json()
+        assert data["count"] == 1
+        assert data["items"][0]["interest_score"] == 8
+        assert data["items"][0]["llm_summary"] == "new"
 
 
 # ── GET /api/items/{id} ──
@@ -267,8 +363,8 @@ class TestApiDigests:
 # ── HTML Pages ──
 
 class TestHtmlPages:
-    def test_home_page(self, seeded_client):
-        resp = seeded_client.get("/")
+    def test_home_page(self, filtered_client):
+        resp = filtered_client.get("/")
         assert resp.status_code == 200
         assert "text/html" in resp.headers["content-type"]
         assert "Trending Items" in resp.text
@@ -277,7 +373,7 @@ class TestHtmlPages:
     def test_home_page_empty(self, client):
         resp = client.get("/")
         assert resp.status_code == 200
-        assert "No items found" in resp.text
+        assert "No filter-approved items yet" in resp.text
 
     def test_item_page(self, seeded_client):
         resp = seeded_client.get("/item/1")
