@@ -79,6 +79,8 @@ sources:
         url: https://tldr.tech/api/rss/ai
       - name: the_rundown_ai
         url: https://www.therundown.ai/feed
+  hf_papers:
+    enabled: true
 
 delivery:
   telegram:
@@ -106,6 +108,8 @@ orchestrator:
       schedule: "0 */6 * * *"
     newsletter_scout:
       schedule: "0 */12 * * *"
+    hf_papers_scout:
+      schedule: "0 */6 * * *"
     scorer:
       schedule: "on_demand"
     filter:
