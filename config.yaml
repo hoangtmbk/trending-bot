@@ -71,23 +71,17 @@ sources:
   blogs:
     enabled: true
     # Broken feeds are logged & skipped. Add freely — the scout tolerates 404s.
+    # Removed 2026-04-19: anthropic, mistral, meta_ai, cohere (no discoverable
+    # RSS — all return 404 or HTML). If these labs ship a feed later, re-add.
     feeds:
-      - name: anthropic
-        url: https://www.anthropic.com/news/rss.xml
       - name: openai
         url: https://openai.com/blog/rss.xml
       - name: deepmind
         url: https://deepmind.google/blog/rss.xml
       - name: huggingface
         url: https://huggingface.co/blog/feed.xml
-      - name: mistral
-        url: https://mistral.ai/news/rss.xml
-      - name: meta_ai
-        url: https://ai.meta.com/blog/rss/
-      - name: cohere
-        url: https://cohere.com/blog/rss.xml
       - name: qwen
-        url: https://qwen.ai/blog/feed.xml
+        url: https://qwenlm.github.io/blog/index.xml
   newsletters:
     enabled: true
     feeds:
@@ -97,15 +91,11 @@ sources:
         url: https://www.interconnects.ai/feed
       - name: tldr_ai
         url: https://tldr.tech/api/rss/ai
-      - name: the_rundown_ai
-        url: https://www.therundown.ai/feed
   hf_papers:
     enabled: true
   lobsters:
     enabled: true
     url: https://lobste.rs/t/ai.rss
-  papers_with_code:
-    enabled: true
   github_releases:
     enabled: true
     # Watched repos whose releases we care about. Keep this list tight —
@@ -152,8 +142,6 @@ orchestrator:
       schedule: "0 */6 * * *"
     lobsters_scout:
       schedule: "0 */6 * * *"
-    papers_with_code_scout:
-      schedule: "0 */12 * * *"
     github_releases_scout:
       schedule: "0 */6 * * *"
     scorer:

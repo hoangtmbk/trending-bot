@@ -23,7 +23,10 @@ class ArxivCollector(BaseCollector):
             sort_by=arxiv.SortCriterion.SubmittedDate,
             sort_order=arxiv.SortOrder.Descending,
         )
-        client = arxiv.Client()
+        # Explicit retries: arxiv's default is 3 retries with 3s delay, but the
+        # service 429s on cold starts — stretch the backoff so first-run failures
+        # don't drop the whole batch.
+        client = arxiv.Client(num_retries=5, delay_seconds=5)
 
         try:
             results = list(client.results(search))

@@ -51,13 +51,6 @@ def compute_momentum_score(item: RawItem) -> float:
         hours = _hours_since(item.timestamp)
         return upvotes / max(hours, 1)
 
-    elif source == "papers_with_code":
-        # GitHub stars on the paper's reference implementation — a signal
-        # that the paper is not just published but actually being used.
-        stars = m.get("github_stars", 0) or 0
-        hours = _hours_since(item.timestamp)
-        return stars / max(hours / 24.0, 1)
-
     elif source == "lobsters":
         # Lobsters RSS doesn't expose vote count; purely a recency signal
         # against a high-S/N curated stream (invite-only community).
