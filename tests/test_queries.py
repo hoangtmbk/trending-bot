@@ -15,6 +15,7 @@ from db.queries import (
     complete_task,
     fail_task,
     get_pending_tasks,
+    has_active_task,
     reset_stuck_tasks,
 )
 
@@ -269,3 +270,32 @@ def test_reset_stuck_tasks_handles_null_started_at(db):
 def test_reset_stuck_tasks_no_op_when_clean(db):
     enqueue_task(db, agent_type="scorer", payload={})  # pending
     assert reset_stuck_tasks(db) == 0
+
+
+class TestHasActiveTask:
+    """has_active_task returns True iff a pending or running task of the given
+    type exists. Used by event-driven debounce in main.py — see scorer
+    re-entrance issue in review 2026-04-19."""
+
+    def test_false_on_empty(self, db):
+        assert has_active_task(db, "scorer") is False
+
+    def test_true_for_pending(self, db):
+        enqueue_task(db, agent_type="scorer", payload={})
+        assert has_active_task(db, "scorer") is True
+
+    def test_true_for_running(self, db):
+        enqueue_task(db, agent_type="scorer", payload={})
+        claim_next_task(db, agent_type="scorer")  # → running
+        assert has_active_task(db, "scorer") is True
+
+    def test_false_after_completion(self, db):
+        enqueue_task(db, agent_type="scorer", payload={})
+        task = claim_next_task(db, agent_type="scorer")
+        complete_task(db, task["id"])
+        assert has_active_task(db, "scorer") is False
+
+    def test_scopes_by_agent_type(self, db):
+        enqueue_task(db, agent_type="filter", payload={})
+        assert has_active_task(db, "scorer") is False
+        assert has_active_task(db, "filter") is True

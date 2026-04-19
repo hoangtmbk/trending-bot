@@ -110,19 +110,21 @@ def _register_all_agents(app: Application) -> None:
 
 
 def _wire_events(app: Application) -> None:
-    """Chain agents via events so collection triggers scoring triggers filtering."""
-    # Keep a simple debounce — don't re-enqueue scorer if one is already pending
+    """Chain agents via events so collection triggers scoring triggers filtering.
+
+    Debounce: skip enqueue if a task is already pending OR running. A
+    running scorer (which rescore all items in ~500s) would otherwise have
+    every new scout event pile a duplicate pending task behind it.
+    """
     def _on_items_updated(data: dict) -> None:
-        from db.queries import get_pending_tasks
-        pending = get_pending_tasks(app.db, agent_type="scorer")
-        if not pending:
+        from db.queries import has_active_task
+        if not has_active_task(app.db, "scorer"):
             enqueue_task(app.db, agent_type="scorer", payload={}, priority=5)
             logger.info("Event: items_updated → enqueued scorer")
 
     def _on_scores_updated(data: dict) -> None:
-        from db.queries import get_pending_tasks
-        pending = get_pending_tasks(app.db, agent_type="filter")
-        if not pending:
+        from db.queries import has_active_task
+        if not has_active_task(app.db, "filter"):
             enqueue_task(app.db, agent_type="filter", payload={}, priority=4)
             logger.info("Event: scores_updated → enqueued filter")
 

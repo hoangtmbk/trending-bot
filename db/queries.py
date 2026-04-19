@@ -305,3 +305,20 @@ def get_pending_tasks(db: Database, agent_type: str | None = None) -> list[dict]
         query += " ORDER BY priority DESC, created_at ASC"
         rows = conn.execute(query, params).fetchall()
     return [dict(row) for row in rows]
+
+
+def has_active_task(db: Database, agent_type: str) -> bool:
+    """Return True if a task of this type is pending OR running.
+
+    Why: event-triggered agents (scorer, filter) would otherwise enqueue a
+    new task for every inbound event during a long run — the in-flight task
+    sits in 'running' not 'pending', so a naive pending-only check lets
+    3-5 duplicate scorer runs pile up per collection cycle.
+    """
+    with db.connect() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM task_queue "
+            "WHERE agent_type=? AND status IN ('pending','running') LIMIT 1",
+            (agent_type,),
+        ).fetchone()
+    return row is not None
