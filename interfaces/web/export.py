@@ -6,6 +6,7 @@ already loaded from the DB and we return strings.
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
@@ -159,5 +160,70 @@ def render_item_markdown(
     lines.append("---")
     lines.append(f"*Exported from TrendBot on {_now_utc_str()}*")
     lines.append("")
+
+    return "\n".join(lines)
+
+
+def render_bulk_markdown(
+    items_with_data: list[tuple[dict, list[dict], list[dict]]],
+) -> str:
+    """Render multiple items as one combined markdown document.
+
+    Items are grouped by category (from each item's filter analysis, falling
+    back to "other"). Categories are sorted by max interest_score in the group;
+    items within a category are sorted by interest_score desc.
+
+    Per-item rendering uses heading_offset=2 so the document has a single H1
+    (the export header), categories are H2, and per-item titles are H3.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    if not items_with_data:
+        return (
+            f"# TrendBot export — {today}\n"
+            f"\n"
+            f"**0 items**, exported on {_now_utc_str()}\n"
+            f"\n"
+            f"(no items)\n"
+        )
+
+    # Bucket items by category, tracking each item's interest_score for sorting.
+    Bucket = list[tuple[int, tuple[dict, list[dict], list[dict]]]]
+    by_category: dict[str, Bucket] = defaultdict(list)
+    sources: set[str] = set()
+
+    for triple in items_with_data:
+        item, analyses, _ = triple
+        filter_content = _extract_filter_content(analyses) or {}
+        category = filter_content.get("category") or "other"
+        score = filter_content.get("interest_score") or 0
+        by_category[category].append((score, triple))
+        if item.get("source"):
+            sources.add(item["source"])
+
+    # Sort categories by max score within group (desc).
+    cat_max = {cat: max(s for s, _ in items) for cat, items in by_category.items()}
+    sorted_categories = sorted(by_category.keys(), key=lambda c: -cat_max[c])
+
+    lines: list[str] = []
+    lines.append(f"# TrendBot export — {today}")
+    lines.append("")
+    lines.append(
+        f"**{len(items_with_data)} items** across {len(sources)} sources, "
+        f"exported on {_now_utc_str()}"
+    )
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    for category in sorted_categories:
+        lines.append(f"## {category}")
+        lines.append("")
+        # Items sorted by score desc within the bucket.
+        for _, (item, analyses, scores) in sorted(
+            by_category[category], key=lambda pair: -pair[0]
+        ):
+            # heading_offset=2 → per-item H1 becomes H3, H2 becomes H4.
+            lines.append(render_item_markdown(item, analyses, scores, heading_offset=2))
 
     return "\n".join(lines)

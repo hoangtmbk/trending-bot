@@ -1,6 +1,6 @@
 import pytest
 
-from interfaces.web.export import slugify, render_item_markdown
+from interfaces.web.export import slugify, render_item_markdown, render_bulk_markdown
 
 
 class TestSlugify:
@@ -223,3 +223,66 @@ class TestRenderItemMarkdown:
         assert "#### Description" in md
         assert "#### Analysis — deep_dive" in md
         assert "#### Score history" in md
+
+
+class TestRenderBulkMarkdown:
+    def test_empty_input_still_valid(self):
+        md = render_bulk_markdown([])
+        assert md.startswith("# TrendBot export — ")
+        assert "(no items)" in md
+
+    def test_single_item(self):
+        triple = (make_item(), [make_filter_analysis()], [])
+        md = render_bulk_markdown([triple])
+        assert md.startswith("# TrendBot export — ")
+        assert "**1 items**" in md
+        # Per-item H1 is demoted to H2
+        assert "## Gemini 3 launch announcement" in md
+        # Per-item H2 is demoted to H3
+        assert "### Summary" in md
+
+    def test_groups_by_category_sorted_by_max_score(self):
+        # Two categories: "model" (max score 9), "tool" (max score 7).
+        # Expected order: model section first, then tool.
+        item_a = make_item(id=1, title="Model A")
+        item_b = make_item(id=2, title="Tool B", url="https://x.example/b")
+        triples = [
+            (item_b, [make_filter_analysis(category="tool", interest_score=7)], []),
+            (item_a, [make_filter_analysis(category="model", interest_score=9)], []),
+        ]
+        md = render_bulk_markdown(triples)
+        model_idx = md.index("## model")
+        tool_idx = md.index("## tool")
+        assert model_idx < tool_idx
+        # Items demoted further inside categories — H2 became H3 (offset=2)
+        assert "### Model A" in md
+        assert "### Tool B" in md
+
+    def test_items_sorted_by_score_desc_within_category(self):
+        item_hi = make_item(id=1, title="High Scorer")
+        item_lo = make_item(id=2, title="Low Scorer", url="https://x.example/lo")
+        triples = [
+            (item_lo, [make_filter_analysis(interest_score=6)], []),
+            (item_hi, [make_filter_analysis(interest_score=10)], []),
+        ]
+        md = render_bulk_markdown(triples)
+        assert md.index("High Scorer") < md.index("Low Scorer")
+
+    def test_uncategorized_items_grouped_under_other(self):
+        item = make_item()
+        # No filter analysis → no category
+        triples = [(item, [], [])]
+        md = render_bulk_markdown(triples)
+        assert "## other" in md
+
+    def test_header_counts(self):
+        triples = [
+            (make_item(id=1, source="blog"), [make_filter_analysis()], []),
+            (make_item(id=2, source="reddit", url="https://r.example"),
+             [make_filter_analysis(category="paper")], []),
+            (make_item(id=3, source="blog", url="https://b.example"),
+             [make_filter_analysis()], []),
+        ]
+        md = render_bulk_markdown(triples)
+        assert "**3 items**" in md
+        assert "2 sources" in md  # blog + reddit
