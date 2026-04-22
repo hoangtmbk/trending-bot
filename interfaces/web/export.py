@@ -6,6 +6,8 @@ already loaded from the DB and we return strings.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
+from typing import Any
 
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 
@@ -21,10 +23,6 @@ def slugify(text: str, max_len: int = 50) -> str:
     if len(s) > max_len:
         s = s[:max_len].rstrip("-")
     return s
-
-
-from datetime import datetime, timezone
-from typing import Any
 
 
 def _stringify_value(value: Any) -> str:
@@ -48,7 +46,11 @@ def _format_field_label(key: str) -> str:
 
 
 def _extract_filter_content(analyses: list[dict]) -> dict | None:
-    """Return the most recent filter analysis content dict (already JSON-parsed)."""
+    """Return the first filter analysis content dict in the list, or None.
+
+    Callers should pass `analyses` ordered newest-first if they want the most
+    recent filter analysis (this matches how the route layer queries it).
+    """
     for a in analyses:
         if a.get("analysis_type") == "filter":
             return a.get("content") or {}
@@ -131,12 +133,16 @@ def render_item_markdown(
             continue
         atype = a.get("analysis_type", "analysis")
         content = a.get("content") or {}
-        lines.append(f"{h2} Analysis — {atype}")
+        content_lines = []
         for key, value in content.items():
             rendered = _stringify_value(value)
             if rendered == "":
                 continue
-            lines.append(f"{_format_field_label(key)}: {rendered}")
+            content_lines.append(f"{_format_field_label(key)}: {rendered}")
+        if not content_lines:
+            continue
+        lines.append(f"{h2} Analysis — {atype}")
+        lines.extend(content_lines)
         lines.append("")
 
     # Score history

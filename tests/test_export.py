@@ -1,6 +1,6 @@
 import pytest
 
-from interfaces.web.export import slugify
+from interfaces.web.export import slugify, render_item_markdown
 
 
 class TestSlugify:
@@ -32,9 +32,6 @@ class TestSlugify:
     def test_unicode_treated_as_non_alphanumeric(self):
         # Keep it ASCII-only — unicode chars become dashes.
         assert slugify("café résumé") == "caf-r-sum"
-
-
-from interfaces.web.export import render_item_markdown
 
 
 def make_item(**overrides):
@@ -196,3 +193,33 @@ class TestRenderItemMarkdown:
         md = render_item_markdown(make_item(), [], [])
         assert isinstance(md, str)
         assert md.endswith("\n")
+
+    def test_analysis_with_only_empty_values_skipped(self):
+        # An analysis whose content values all stringify to "" should not
+        # leave an orphan "## Analysis — {type}" heading in the output.
+        empty_analysis = {
+            "id": 99, "item_id": 42, "analysis_type": "deep_dive",
+            "created_at": "2026-04-22T09:00:00+00:00",
+            "content": {"thesis": None, "key_findings": None},
+        }
+        md = render_item_markdown(make_item(), [empty_analysis], [])
+        assert "## Analysis — deep_dive" not in md
+
+    def test_heading_offset_demotes_all_headings(self):
+        # heading_offset=2 → per-item H1 becomes H3, H2 becomes H4.
+        # Used by render_bulk_markdown so the document has a single H1.
+        md = render_item_markdown(
+            make_item(),
+            [make_filter_analysis(), make_deep_dive_analysis()],
+            [make_score("2026-04-21T10:00:00+00:00", 0.5, 40.0)],
+            heading_offset=2,
+        )
+        assert "### Gemini 3 launch announcement" in md
+        # No bare H1 anywhere
+        assert "\n# " not in md
+        assert not md.startswith("# ")
+        # Per-item H2 sections become H4
+        assert "#### Summary" in md
+        assert "#### Description" in md
+        assert "#### Analysis — deep_dive" in md
+        assert "#### Score history" in md
