@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block title %}TrendBot — Dashboard{% endblock %}
 {% block content %}
-<h1 style="margin: 20px 0;">Trending Items</h1>
+<div style="margin: 20px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+    <h1 style="margin: 0;">Trending Items</h1>
+    <input type="text" id="search" placeholder="Search…"
+           style="flex: 1; min-width: 200px; padding: 6px 10px; background:#1e293b; border:1px solid #334155; border-radius:6px; color:#e2e8f0;">
+    <button id="export-visible" class="btn btn-secondary" disabled>⬇ Export visible (0)</button>
+</div>
 <div id="items">
 {% for item in items %}
 <div class="card" data-item-id="{{ item.id }}">
@@ -33,4 +38,63 @@
 <p class="meta">No filter-approved items yet. The filter agent runs after each scoring pass — check back in a few cycles.</p>
 {% endif %}
 </div>
+
+<script>
+(function () {
+    const search = document.getElementById('search');
+    const button = document.getElementById('export-visible');
+    const cards = Array.from(document.querySelectorAll('.card[data-item-id]'));
+
+    function visibleCards() {
+        return cards.filter(c => c.style.display !== 'none');
+    }
+
+    function refreshButton() {
+        const n = visibleCards().length;
+        button.textContent = `⬇ Export visible (${n})`;
+        button.disabled = n === 0;
+    }
+
+    if (search) {
+        search.addEventListener('input', function (e) {
+            const q = e.target.value.toLowerCase();
+            cards.forEach(card => {
+                const text = (card.textContent || '').toLowerCase();
+                card.style.display = text.includes(q) ? '' : 'none';
+            });
+            refreshButton();
+        });
+    }
+
+    button.addEventListener('click', async function () {
+        const ids = visibleCards().map(c => parseInt(c.dataset.itemId, 10));
+        if (ids.length === 0) return;
+        button.disabled = true;
+        try {
+            const resp = await fetch('/api/items/export.md', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: ids }),
+            });
+            if (!resp.ok) throw new Error(`Export failed: ${resp.status}`);
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const today = new Date().toISOString().slice(0, 10);
+            a.download = `trendbot-export-${today}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            alert('Export failed: ' + err.message);
+        } finally {
+            refreshButton();
+        }
+    });
+
+    refreshButton();
+})();
+</script>
 {% endblock %}
