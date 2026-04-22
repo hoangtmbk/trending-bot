@@ -160,7 +160,10 @@ def create_app(db: Database, config: dict) -> FastAPI:
 
     @app.post("/api/items/export.md")
     async def api_bulk_export(request: Request):
-        body = await request.json()
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Request body must be valid JSON")
         ids = body.get("ids")
         if not isinstance(ids, list) or not ids:
             raise HTTPException(

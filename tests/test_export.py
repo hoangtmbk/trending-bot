@@ -457,3 +457,12 @@ class TestPostBulkExport:
             json={"ids": list(range(1, 102))},
         )
         assert resp.status_code == 400
+
+    def test_400_when_body_not_json(self, export_client):
+        # A non-JSON body (or absent body) should produce a clean 400, not a 500.
+        resp = export_client.post(
+            "/api/items/export.md",
+            content="not json at all",
+            headers={"Content-Type": "application/json"},
+        )
+        assert resp.status_code == 400
