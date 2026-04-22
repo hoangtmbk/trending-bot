@@ -114,9 +114,9 @@ Then items grouped by `category` (sorted by max `interest_score` per category, i
 
 ### Dashboard top bar
 
-- Above the existing search box, add an **"Export visible (N)"** button.
+- Add a search input *and* an **"Export visible (N)"** button to a new top bar above the items list. (The current `interfaces/web/templates/index.html` has no search box — the search-then-export workflow only works once we add one. The legacy `templates/index.html` had a similar search; we're not reusing it.)
 - JS:
-  - On page load and on every search-input event: count the currently-visible `.card` elements (the existing search toggles `card.style.display`, so `card.style.display !== 'none'` is the visibility check) and update the button label.
+  - On page load and on every search-input event: filter cards by toggling `card.style.display`, then count the currently-visible `.card` elements (`card.style.display !== 'none'`) and update the button label.
   - On click: collect `data-item-id` values from visible cards, `POST` to `/api/items/export.md` with `{"ids": [...]}`, then trigger a download by reading the response as a `Blob`, creating a temporary `<a download="trendbot-export-YYYY-MM-DD.md">`, clicking it, and revoking the URL.
   - Disabled when 0 items are visible.
 
