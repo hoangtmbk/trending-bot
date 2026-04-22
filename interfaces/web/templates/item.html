@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ item.title[:60] }} — TrendBot{% endblock %}
 {% block content %}
-<div style="margin: 20px 0;">
+<div style="margin: 20px 0; display: flex; gap: 8px; align-items: center;">
     <a href="/" class="btn btn-secondary">← Back</a>
+    <a href="/api/items/{{ item.id }}/export.md" class="btn btn-secondary">⬇ Export to Markdown</a>
 </div>
 <h1>{{ item.title }}</h1>
 <div class="meta" style="margin: 10px 0;">
