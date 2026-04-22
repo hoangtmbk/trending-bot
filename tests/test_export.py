@@ -451,6 +451,11 @@ class TestPostBulkExport:
         resp = export_client.post("/api/items/export.md", json={"ids": [1, "two", 3]})
         assert resp.status_code == 400
 
+    def test_400_when_ids_contain_booleans(self, export_client):
+        # `isinstance(True, int)` is True in Python — guard against this edge case.
+        resp = export_client.post("/api/items/export.md", json={"ids": [True, False]})
+        assert resp.status_code == 400
+
     def test_400_when_too_many_ids(self, export_client):
         resp = export_client.post(
             "/api/items/export.md",

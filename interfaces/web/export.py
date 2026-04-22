@@ -77,8 +77,9 @@ def render_item_markdown(
 ) -> str:
     """Render one item as markdown.
 
-    `heading_offset` shifts every heading down by N levels (used by bulk export
-    so the per-item H1 becomes H2 under the document's top-level H1).
+    `heading_offset` shifts every heading down by N levels. The bulk exporter
+    passes `heading_offset=2` so the per-item H1 becomes H3 under the document
+    H1 (export header) and category H2.
     """
     h1 = "#" * (1 + heading_offset)
     h2 = "#" * (2 + heading_offset)
