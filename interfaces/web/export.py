@@ -188,8 +188,7 @@ def render_bulk_markdown(
         )
 
     # Bucket items by category, tracking each item's interest_score for sorting.
-    Bucket = list[tuple[int, tuple[dict, list[dict], list[dict]]]]
-    by_category: dict[str, Bucket] = defaultdict(list)
+    by_category: dict[str, list[tuple[int, tuple[dict, list[dict], list[dict]]]]] = defaultdict(list)
     sources: set[str] = set()
 
     for triple in items_with_data:

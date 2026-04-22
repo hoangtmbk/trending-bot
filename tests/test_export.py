@@ -236,10 +236,11 @@ class TestRenderBulkMarkdown:
         md = render_bulk_markdown([triple])
         assert md.startswith("# TrendBot export — ")
         assert "**1 items**" in md
-        # Per-item H1 is demoted to H2
-        assert "## Gemini 3 launch announcement" in md
-        # Per-item H2 is demoted to H3
-        assert "### Summary" in md
+        # heading_offset=2: per-item H1 (item title) is demoted to H3
+        # under the document H1 and category H2.
+        assert "\n### Gemini 3 launch announcement\n" in md
+        # Per-item H2 sections (Summary, Description, …) become H4.
+        assert "\n#### Summary\n" in md
 
     def test_groups_by_category_sorted_by_max_score(self):
         # Two categories: "model" (max score 9), "tool" (max score 7).
@@ -254,9 +255,9 @@ class TestRenderBulkMarkdown:
         model_idx = md.index("## model")
         tool_idx = md.index("## tool")
         assert model_idx < tool_idx
-        # Items demoted further inside categories — H2 became H3 (offset=2)
-        assert "### Model A" in md
-        assert "### Tool B" in md
+        # heading_offset=2: per-item H1 (item title) becomes H3.
+        assert "\n### Model A\n" in md
+        assert "\n### Tool B\n" in md
 
     def test_items_sorted_by_score_desc_within_category(self):
         item_hi = make_item(id=1, title="High Scorer")
