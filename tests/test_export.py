@@ -385,3 +385,75 @@ class TestGetItemExport:
     def test_404_on_missing_item(self, export_client):
         resp = export_client.get("/api/items/99999/export.md")
         assert resp.status_code == 404
+
+
+class TestPostBulkExport:
+    def test_returns_markdown(self, export_client, seeded_export_db):
+        _, item_id = seeded_export_db
+        resp = export_client.post("/api/items/export.md", json={"ids": [item_id]})
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/markdown")
+
+    def test_content_disposition_filename(self, export_client, seeded_export_db):
+        _, item_id = seeded_export_db
+        resp = export_client.post("/api/items/export.md", json={"ids": [item_id]})
+        cd = resp.headers["content-disposition"]
+        assert "attachment" in cd
+        assert "trendbot-export-" in cd
+        assert ".md" in cd
+
+    def test_includes_all_requested_items(self, db):
+        ids = []
+        for i, title in enumerate(["First", "Second", "Third"]):
+            ids.append(upsert_item(
+                db, url=f"https://x.example/{i}", title=title,
+                source="blog", description="", raw_metrics={},
+                momentum_score=0.0, normalized_score=0.0,
+            ))
+        client = TestClient(create_app(db, config={}))
+        resp = client.post("/api/items/export.md", json={"ids": ids})
+        assert resp.status_code == 200
+        body = resp.text
+        for title in ["First", "Second", "Third"]:
+            assert title in body
+
+    def test_missing_ids_silently_skipped(self, export_client, seeded_export_db):
+        _, item_id = seeded_export_db
+        resp = export_client.post(
+            "/api/items/export.md",
+            json={"ids": [item_id, 99998, 99999]},
+        )
+        assert resp.status_code == 200
+        # Real item present, missing ones don't break the export
+        assert "Gemini 3 Launch" in resp.text
+
+    def test_all_missing_returns_empty_export(self, export_client):
+        resp = export_client.post(
+            "/api/items/export.md",
+            json={"ids": [99998, 99999]},
+        )
+        assert resp.status_code == 200
+        assert "(no items)" in resp.text
+
+    def test_400_when_ids_missing(self, export_client):
+        resp = export_client.post("/api/items/export.md", json={})
+        assert resp.status_code == 400
+
+    def test_400_when_ids_empty(self, export_client):
+        resp = export_client.post("/api/items/export.md", json={"ids": []})
+        assert resp.status_code == 400
+
+    def test_400_when_ids_not_a_list(self, export_client):
+        resp = export_client.post("/api/items/export.md", json={"ids": "not-a-list"})
+        assert resp.status_code == 400
+
+    def test_400_when_ids_contain_non_integer(self, export_client):
+        resp = export_client.post("/api/items/export.md", json={"ids": [1, "two", 3]})
+        assert resp.status_code == 400
+
+    def test_400_when_too_many_ids(self, export_client):
+        resp = export_client.post(
+            "/api/items/export.md",
+            json={"ids": list(range(1, 102))},
+        )
+        assert resp.status_code == 400

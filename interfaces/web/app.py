@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
@@ -153,6 +154,41 @@ def create_app(db: Database, config: dict) -> FastAPI:
         body = render_item_markdown(item, analyses, scores)
         return Response(
             content=body,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    @app.post("/api/items/export.md")
+    async def api_bulk_export(request: Request):
+        body = await request.json()
+        ids = body.get("ids")
+        if not isinstance(ids, list) or not ids:
+            raise HTTPException(
+                status_code=400,
+                detail="ids must be a non-empty list of integers (max 100)",
+            )
+        if len(ids) > 100:
+            raise HTTPException(
+                status_code=400,
+                detail="ids must be a non-empty list of integers (max 100)",
+            )
+        if not all(isinstance(i, int) and not isinstance(i, bool) for i in ids):
+            raise HTTPException(
+                status_code=400,
+                detail="ids must be a non-empty list of integers (max 100)",
+            )
+
+        bundles = []
+        for item_id in ids:
+            bundle = _load_item_export_bundle(item_id)
+            if bundle is not None:
+                bundles.append(bundle)
+
+        body_md = render_bulk_markdown(bundles)
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        filename = f"trendbot-export-{today}.md"
+        return Response(
+            content=body_md,
             media_type="text/markdown; charset=utf-8",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
