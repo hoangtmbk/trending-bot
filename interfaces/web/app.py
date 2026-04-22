@@ -4,11 +4,12 @@ import logging
 import os
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from db.database import Database
 from db.queries import get_items, get_items_with_filter, get_item_by_id, get_score_history, enqueue_task
+from interfaces.web.export import render_item_markdown, render_bulk_markdown, slugify
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,43 @@ def create_app(db: Database, config: dict) -> FastAPI:
             if h.get("raw_metrics"):
                 h["raw_metrics"] = json.loads(h["raw_metrics"])
         return {"scores": history}
+
+    def _load_item_export_bundle(item_id: int) -> tuple[dict, list[dict], list[dict]] | None:
+        """Fetch item + analyses + score history. Returns None if item missing."""
+        item = get_item_by_id(db, item_id)
+        if not item:
+            return None
+        if item.get("raw_metrics"):
+            item["raw_metrics"] = json.loads(item["raw_metrics"])
+        with db.connect() as conn:
+            analysis_rows = conn.execute(
+                "SELECT * FROM item_analysis WHERE item_id=? ORDER BY created_at DESC",
+                (item_id,),
+            ).fetchall()
+        analyses = []
+        for row in analysis_rows:
+            a = dict(row)
+            if a.get("content"):
+                a["content"] = json.loads(a["content"])
+            analyses.append(a)
+        scores = get_score_history(db, item_id)
+        return item, analyses, scores
+
+    @app.get("/api/items/{item_id}/export.md")
+    async def api_item_export(item_id: int):
+        bundle = _load_item_export_bundle(item_id)
+        if bundle is None:
+            raise HTTPException(status_code=404, detail="Item not found")
+        item, analyses, scores = bundle
+
+        slug = slugify(item.get("title") or "")
+        filename = f"item-{item_id}-{slug}.md" if slug else f"item-{item_id}.md"
+        body = render_item_markdown(item, analyses, scores)
+        return Response(
+            content=body,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     @app.post("/api/items/{item_id}/action")
     async def api_item_action(item_id: int, request: Request):

@@ -1,5 +1,10 @@
+import json as _json
 import pytest
+from fastapi.testclient import TestClient
 
+from db.database import Database
+from db.queries import upsert_item, snapshot_score
+from interfaces.web.app import create_app
 from interfaces.web.export import slugify, render_item_markdown, render_bulk_markdown
 
 
@@ -287,3 +292,96 @@ class TestRenderBulkMarkdown:
         md = render_bulk_markdown(triples)
         assert "**3 items**" in md
         assert "2 sources" in md  # blog + reddit
+
+
+@pytest.fixture
+def db(tmp_path):
+    database = Database(db_path=tmp_path / "test.db")
+    database.initialize()
+    return database
+
+
+@pytest.fixture
+def seeded_export_db(db):
+    """One item with a filter analysis, a deep-dive analysis, and a score row."""
+    item_id = upsert_item(
+        db,
+        url="https://blog.google/gemini-3/",
+        title="Gemini 3 Launch",
+        source="blog",
+        description="Major frontier model release.",
+        raw_metrics={},
+        momentum_score=0.0,
+        normalized_score=48.0,
+    )
+    with db.connect() as conn:
+        conn.execute(
+            "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+            "VALUES (?, 'filter', datetime('now'), ?)",
+            (item_id, _json.dumps({
+                "novel": True, "ai_relevant": True,
+                "interest_score": 9, "category": "model",
+                "summary": "Gemini 3 launch — major model release.",
+            })),
+        )
+        conn.execute(
+            "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+            "VALUES (?, 'deep_dive', datetime('now'), ?)",
+            (item_id, _json.dumps({
+                "thesis": "Step change in reasoning quality.",
+                "key_findings": ["10x scaling", "Multimodal native"],
+            })),
+        )
+        conn.commit()
+    snapshot_score(db, item_id, momentum_score=0.5, normalized_score=40.0)
+    snapshot_score(db, item_id, momentum_score=0.8, normalized_score=48.0)
+    return db, item_id
+
+
+@pytest.fixture
+def export_client(seeded_export_db):
+    db, _ = seeded_export_db
+    return TestClient(create_app(db, config={}))
+
+
+class TestGetItemExport:
+    def test_returns_markdown(self, export_client, seeded_export_db):
+        _, item_id = seeded_export_db
+        resp = export_client.get(f"/api/items/{item_id}/export.md")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/markdown")
+
+    def test_content_disposition_attachment(self, export_client, seeded_export_db):
+        _, item_id = seeded_export_db
+        resp = export_client.get(f"/api/items/{item_id}/export.md")
+        cd = resp.headers["content-disposition"]
+        assert "attachment" in cd
+        assert f"item-{item_id}-gemini-3-launch.md" in cd
+
+    def test_filename_falls_back_when_slug_empty(self, db):
+        item_id = upsert_item(
+            db, url="https://x.example/weird", title="!!!---???",
+            source="blog", description="", raw_metrics={},
+            momentum_score=0.0, normalized_score=0.0,
+        )
+        client = TestClient(create_app(db, config={}))
+        resp = client.get(f"/api/items/{item_id}/export.md")
+        cd = resp.headers["content-disposition"]
+        assert f'filename="item-{item_id}.md"' in cd
+
+    def test_body_starts_with_h1(self, export_client, seeded_export_db):
+        _, item_id = seeded_export_db
+        resp = export_client.get(f"/api/items/{item_id}/export.md")
+        assert resp.text.startswith("# Gemini 3 Launch")
+
+    def test_body_includes_analysis_and_scores(self, export_client, seeded_export_db):
+        _, item_id = seeded_export_db
+        resp = export_client.get(f"/api/items/{item_id}/export.md")
+        body = resp.text
+        assert "## Summary" in body
+        assert "## Analysis — deep_dive" in body
+        assert "## Score history" in body
+
+    def test_404_on_missing_item(self, export_client):
+        resp = export_client.get("/api/items/99999/export.md")
+        assert resp.status_code == 404
