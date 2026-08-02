@@ -14,10 +14,37 @@ from interfaces.web.export import render_item_markdown, render_bulk_markdown, sl
 
 logger = logging.getLogger(__name__)
 
+BULK_EXPORT_MAX_IDS = 500
+
 BOOKMARK_DELTA = 0.1
 DISMISS_DELTA = -0.05
 WEIGHT_MIN = 0.1
 WEIGHT_MAX = 5.0
+
+
+def _age_label(timestamp: str | None, now: datetime | None = None) -> str:
+    """Human-readable age of an ISO timestamp — "just now", "5h ago", "72d ago".
+
+    Returns "" for missing or unparseable input so the template can just skip it.
+    Cards previously showed only `times_seen`, which made a two-month-old item
+    indistinguishable from one collected this morning.
+    """
+    if not timestamp:
+        return ""
+    try:
+        seen = datetime.fromisoformat(timestamp)
+    except (ValueError, TypeError):
+        return ""
+    if seen.tzinfo is None:
+        seen = seen.replace(tzinfo=timezone.utc)
+
+    delta = (now or datetime.now(timezone.utc)) - seen
+    hours = delta.total_seconds() / 3600
+    if hours < 1:
+        return "just now"
+    if hours < 24:
+        return f"{int(hours)}h ago"
+    return f"{int(hours // 24)}d ago"
 
 
 def _adjust_topic_weights_for_item(db: Database, item_id: int, action: str) -> None:
@@ -79,7 +106,7 @@ def create_app(db: Database, config: dict) -> FastAPI:
     @app.get("/api/items")
     async def api_items(
         source: str | None = None,
-        limit: int = Query(default=30, le=100),
+        limit: int = Query(default=30, ge=1, le=5000),
         min_interest: int = Query(default=6, ge=0, le=10),
     ):
         items = get_items_with_filter(db, limit=limit, min_interest=min_interest,
@@ -168,17 +195,17 @@ def create_app(db: Database, config: dict) -> FastAPI:
         if not isinstance(ids, list) or not ids:
             raise HTTPException(
                 status_code=400,
-                detail="ids must be a non-empty list of integers (max 100)",
+                detail=f"ids must be a non-empty list of integers (max {BULK_EXPORT_MAX_IDS})",
             )
-        if len(ids) > 100:
+        if len(ids) > BULK_EXPORT_MAX_IDS:
             raise HTTPException(
                 status_code=400,
-                detail="ids must be a non-empty list of integers (max 100)",
+                detail=f"ids must be a non-empty list of integers (max {BULK_EXPORT_MAX_IDS})",
             )
         if not all(isinstance(i, int) and not isinstance(i, bool) for i in ids):
             raise HTTPException(
                 status_code=400,
-                detail="ids must be a non-empty list of integers (max 100)",
+                detail=f"ids must be a non-empty list of integers (max {BULK_EXPORT_MAX_IDS})",
             )
 
         bundles = []
@@ -303,10 +330,14 @@ def create_app(db: Database, config: dict) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     async def page_home(request: Request):
-        items = get_items_with_filter(db, limit=30, min_interest=6)
+        # limit=None: the dashboard lists the whole filter-approved pool. Ordering
+        # is recency-decayed (see get_items_with_filter), so the tail is old-but-
+        # still-browsable rather than stale items squatting at the top.
+        items = get_items_with_filter(db, limit=None, min_interest=6)
         for item in items:
             if item.get("raw_metrics"):
                 item["raw_metrics"] = json.loads(item["raw_metrics"])
+            item["age_label"] = _age_label(item.get("last_seen"))
         return templates.TemplateResponse(request, "index.html", {"items": items})
 
     @app.get("/item/{item_id}", response_class=HTMLResponse)

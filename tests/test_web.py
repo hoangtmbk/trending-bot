@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -443,3 +445,92 @@ class TestHtmlRoutes:
         resp = client.get("/topics")
         assert resp.status_code == 200
         assert "html" in resp.headers.get("content-type", "").lower()
+
+
+# ── Full-list browsing: the dashboard shows every eligible item ──
+
+def _seed_many_filtered(db, count: int, interest_score: int = 7):
+    for n in range(count):
+        item_id = upsert_item(db, url=f"https://bulk.example/{n}",
+                              title=f"Bulk Item {n}", source="hackernews",
+                              description="", raw_metrics={},
+                              normalized_score=float(count - n))
+        _insert_filter_analysis(db, item_id, interest_score=interest_score)
+
+
+class TestDashboardShowsAllItems:
+    def test_home_page_renders_every_eligible_item(self, db):
+        """The dashboard was capped at 30 cards; it must list the whole pool."""
+        _seed_many_filtered(db, 42)
+        client = TestClient(create_app(db, config={}))
+
+        resp = client.get("/")
+
+        assert resp.status_code == 200
+        assert resp.text.count('data-item-id="') == 42
+
+    def test_home_page_shows_the_total_count(self, db):
+        _seed_many_filtered(db, 42)
+        client = TestClient(create_app(db, config={}))
+
+        resp = client.get("/")
+
+        assert "Trending Items (42)" in resp.text
+
+
+class TestApiItemsLimit:
+    def test_accepts_limit_above_the_old_100_cap(self, db):
+        _seed_many_filtered(db, 120)
+        client = TestClient(create_app(db, config={}))
+
+        resp = client.get("/api/items?limit=500")
+
+        assert resp.status_code == 200
+        assert resp.json()["count"] == 120
+
+    def test_rejects_limit_beyond_the_hard_cap(self, client):
+        resp = client.get("/api/items?limit=99999")
+        assert resp.status_code == 422
+
+
+# ── Card freshness: staleness must be visible at a glance ──
+
+class TestAgeLabel:
+    def test_minutes_old_reads_as_now(self):
+        from interfaces.web.app import _age_label
+        now = datetime(2026, 8, 2, 12, 0, tzinfo=timezone.utc)
+        assert _age_label("2026-08-02T11:40:00+00:00", now=now) == "just now"
+
+    def test_hours_old(self):
+        from interfaces.web.app import _age_label
+        now = datetime(2026, 8, 2, 12, 0, tzinfo=timezone.utc)
+        assert _age_label("2026-08-02T07:00:00+00:00", now=now) == "5h ago"
+
+    def test_days_old(self):
+        from interfaces.web.app import _age_label
+        now = datetime(2026, 8, 2, 12, 0, tzinfo=timezone.utc)
+        assert _age_label("2026-05-22T12:00:00+00:00", now=now) == "72d ago"
+
+    def test_unparseable_timestamp_yields_empty_label(self):
+        from interfaces.web.app import _age_label
+        assert _age_label("not-a-date") == ""
+
+    def test_missing_timestamp_yields_empty_label(self):
+        from interfaces.web.app import _age_label
+        assert _age_label(None) == ""
+
+
+class TestDashboardShowsItemAge:
+    def test_card_renders_the_age_label(self, db):
+        item_id = upsert_item(db, url="https://old.example/x", title="Stale One",
+                              source="hackernews", description="", raw_metrics={})
+        stale = (datetime.now(timezone.utc) - timedelta(days=72)).isoformat()
+        with db.connect() as conn:
+            conn.execute("UPDATE items SET last_seen=? WHERE id=?", (stale, item_id))
+            conn.commit()
+        _insert_filter_analysis(db, item_id, interest_score=8)
+        client = TestClient(create_app(db, config={}))
+
+        resp = client.get("/")
+
+        assert "72d ago" in resp.text

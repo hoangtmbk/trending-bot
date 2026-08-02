@@ -2,7 +2,7 @@
 {% block title %}TrendBot — Dashboard{% endblock %}
 {% block content %}
 <div style="margin: 20px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-    <h1 style="margin: 0;">Trending Items</h1>
+    <h1 style="margin: 0;">Trending Items ({{ items|length }})</h1>
     <input type="text" id="search" placeholder="Search…"
            style="flex: 1; min-width: 200px; padding: 6px 10px; background:#1e293b; border:1px solid #334155; border-radius:6px; color:#e2e8f0;">
     <button id="export-visible" class="btn btn-secondary" disabled>⬇ Export visible (0)</button>
@@ -19,6 +19,7 @@
             <div class="meta" style="margin-top: 4px;">
                 <span class="badge badge-{{ item.source }}">{{ item.source }}</span>
                 {% if item.category %}<span class="badge" style="background:#334155;color:#e2e8f0;">{{ item.category }}</span>{% endif %}
+                {% if item.age_label %}<span style="margin-left: 6px;">{{ item.age_label }}</span> ·{% endif %}
                 <span style="margin-left: 6px;">Seen {{ item.times_seen }}x</span>
                 {% if item.url %} · <a href="{{ item.url }}" target="_blank">↗ source</a>{% endif %}
             </div>
@@ -49,9 +50,16 @@
         return cards.filter(c => c.style.display !== 'none');
     }
 
+    // Server rejects bulk exports above BULK_EXPORT_MAX_IDS. The dashboard now
+    // lists the full pool, so an unfiltered "export visible" would blow past it —
+    // export the top EXPORT_CAP by rank instead of failing the request.
+    const EXPORT_CAP = 500;
+
     function refreshButton() {
         const n = visibleCards().length;
-        button.textContent = `⬇ Export visible (${n})`;
+        button.textContent = n > EXPORT_CAP
+            ? `⬇ Export top ${EXPORT_CAP} of ${n}`
+            : `⬇ Export visible (${n})`;
         button.disabled = n === 0;
     }
 
@@ -67,7 +75,8 @@
     }
 
     button.addEventListener('click', async function () {
-        const ids = visibleCards().map(c => parseInt(c.dataset.itemId, 10));
+        const ids = visibleCards().slice(0, EXPORT_CAP)
+            .map(c => parseInt(c.dataset.itemId, 10));
         if (ids.length === 0) return;
         button.disabled = true;
         try {

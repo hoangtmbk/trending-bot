@@ -459,7 +459,7 @@ class TestPostBulkExport:
     def test_400_when_too_many_ids(self, export_client):
         resp = export_client.post(
             "/api/items/export.md",
-            json={"ids": list(range(1, 102))},
+            json={"ids": list(range(1, 502))},
         )
         assert resp.status_code == 400
 
@@ -471,3 +471,30 @@ class TestPostBulkExport:
             headers={"Content-Type": "application/json"},
         )
         assert resp.status_code == 400
+
+
+class TestBulkExportCap:
+    """The dashboard lists the entire filter-approved pool, so "export visible"
+    can carry far more than the old 100-id cap. The cap moved to 500."""
+
+    def _client_with_items(self, db, n):
+        ids = []
+        for i in range(n):
+            ids.append(upsert_item(
+                db, url=f"https://cap.example/{i}", title=f"Item {i}",
+                source="blog", description="", raw_metrics={},
+                momentum_score=0.0, normalized_score=0.0,
+            ))
+        return TestClient(create_app(db, config={})), ids
+
+    def test_accepts_500_ids(self, db):
+        client, ids = self._client_with_items(db, 500)
+        resp = client.post("/api/items/export.md", json={"ids": ids})
+        assert resp.status_code == 200
+        assert "Item 499" in resp.text
+
+    def test_rejects_more_than_500_ids(self, db):
+        client, _ = self._client_with_items(db, 1)
+        resp = client.post("/api/items/export.md", json={"ids": list(range(1, 502))})
+        assert resp.status_code == 400
+        assert "max 500" in resp.json()["detail"]
