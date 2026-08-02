@@ -6,7 +6,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class Database:
@@ -22,8 +22,13 @@ class Database:
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
             )
             if cursor.fetchone():
-                existing = conn.execute("SELECT version FROM schema_version").fetchone()
-                if existing and existing[0] >= SCHEMA_VERSION:
+                # An upgrade inserts a new row rather than updating the old one
+                # (version is the primary key), so read the highest — a plain
+                # SELECT would return the stale row and re-run the script forever.
+                existing = conn.execute(
+                    "SELECT MAX(version) FROM schema_version"
+                ).fetchone()
+                if existing and existing[0] is not None and existing[0] >= SCHEMA_VERSION:
                     logger.info(f"Database already at version {existing[0]}")
                     return
 
