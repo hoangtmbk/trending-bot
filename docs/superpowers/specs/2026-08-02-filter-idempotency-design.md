@@ -71,6 +71,24 @@ transient failure self-heals within minutes if we simply do nothing.
 **Exclusion happens at selection time, not before the INSERT.** This is what
 avoids the ~100s LLM call rather than just the write.
 
+**Rejected items get a stored verdict too.** Found during implementation: the
+agent previously `continue`d before the INSERT when `novel` or `ai_relevant` was
+false, so a rejected item had no `item_analysis` row. Under `NOT EXISTS` that
+puts it straight back in the pool on the next run, re-sending it to the LLM for
+the rest of the 48h window — the waste this change exists to remove, aimed at
+exactly the items the LLM already called junk. So the row is always written, and
+only the side effects (topic assignment, promotion to `status='tracking'`,
+deep-dive candidacy) stay gated on the verdict.
+
+Both readers are unaffected: `get_items_with_filter` gates on
+`novel=1 AND ai_relevant=1` (`db/queries.py:128-129`), and
+`digest_pusher._select_items` gates on `status='tracking'`
+(`digest_pusher.py:136`), which a rejected item never reaches.
+
+An item the LLM omits from its response entirely still gets no row and will be
+re-sent. That is genuinely "no verdict", the 48h window bounds it, and inventing
+a verdict would repeat the fallback mistake — so it is left alone.
+
 ## Design
 
 ### 1. `db/queries.py` — new `get_unfiltered_items()`
@@ -106,8 +124,10 @@ index.
   drains, so it must be cheap and must not log at warning level.
 - Lines 28–34: remove the fabricated-verdict fallback. On exception, log the
   error and return `AgentResult(success=False, message=...)`.
-- Everything downstream of the INSERT (topic assignment, status promotion,
-  `_enqueue_deep_dives`) is unchanged.
+- The result loop writes the `item_analysis` row for every evaluated item and
+  gates only the side effects — topics, `status='tracking'`, deep-dive
+  candidacy — on `novel AND ai_relevant`. `analyzed_count` keeps its current
+  meaning of items that passed.
 
 ### 3. `scripts/dedupe_filter_analyses.py`
 
@@ -147,6 +167,8 @@ Test-first, using the existing `TestRelevanceFilter` fixtures in
 - a fresh unfiltered item is still selected and stored
 - nothing to filter → early return, LLM not called, zero rows written
 - LLM failure → zero rows written, `success=False`
+- a rejected item still gets a row, is not promoted, gets no topic, and is not
+  re-sent on a second run
 
 `test_filter_fallback_on_llm_failure` (`tests/test_analysts.py:364`) currently
 asserts the fallback *writes* rows; it inverts.

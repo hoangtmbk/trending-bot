@@ -9,6 +9,7 @@ from db.queries import (
     get_item_by_id,
     get_items,
     get_items_with_filter,
+    get_unfiltered_items,
     snapshot_score,
     get_score_history,
     enqueue_task,
@@ -452,3 +453,88 @@ class TestGetItemsWithFilterUnbounded:
         items = get_items_with_filter(db, limit=None, min_interest=6)
 
         assert [i["title"] for i in items] == ["Keep"]
+
+
+# ── get_unfiltered_items: the filter agent's candidate pool ──
+
+def _seed_item(db, *, url, title, normalized_score=1.0, age_hours=0.0,
+               analysis_type=None, source="hackernews"):
+    """Insert an item aged by `age_hours`, optionally with one analysis row."""
+    item_id = upsert_item(db, url=url, title=title, source=source,
+                          description="", raw_metrics={},
+                          normalized_score=normalized_score)
+    seen = (datetime.now(timezone.utc) - timedelta(hours=age_hours)).isoformat()
+    with db.connect() as conn:
+        conn.execute("UPDATE items SET first_seen=?, last_seen=? WHERE id=?",
+                     (seen, seen, item_id))
+        if analysis_type:
+            conn.execute(
+                "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+                "VALUES (?, ?, ?, ?)",
+                (item_id, analysis_type, seen, json.dumps({"summary": title})),
+            )
+        conn.commit()
+    return item_id
+
+
+def _since(hours):
+    return (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+
+
+class TestGetUnfilteredItems:
+    def test_excludes_items_last_seen_before_the_cutoff(self, db):
+        """A stale item's normalized_score is frozen, not decayed — the scorer
+        only rescores the last 48h — so without this bound an old high scorer
+        would sit in the candidate pool forever and be re-filtered every run.
+        """
+        _seed_item(db, url="https://old.example/a", title="Stale",
+                   normalized_score=99.0, age_hours=72)
+        _seed_item(db, url="https://new.example/b", title="Fresh",
+                   normalized_score=1.0, age_hours=1)
+
+        items = get_unfiltered_items(db, since=_since(48), limit=10)
+
+        assert [i["title"] for i in items] == ["Fresh"]
+
+    def test_excludes_items_that_already_have_a_filter_analysis(self, db):
+        _seed_item(db, url="https://a.example/done", title="Done",
+                   age_hours=1, analysis_type="filter")
+        _seed_item(db, url="https://a.example/todo", title="Todo", age_hours=1)
+
+        items = get_unfiltered_items(db, since=_since(48), limit=10)
+
+        assert [i["title"] for i in items] == ["Todo"]
+
+    def test_includes_items_whose_only_analysis_is_another_type(self, db):
+        """A deep_dive row must not be mistaken for a filter verdict."""
+        _seed_item(db, url="https://b.example/dd", title="Deep Dived",
+                   age_hours=1, analysis_type="deep_dive")
+
+        items = get_unfiltered_items(db, since=_since(48), limit=10)
+
+        assert [i["title"] for i in items] == ["Deep Dived"]
+
+    def test_orders_by_normalized_score_descending(self, db):
+        _seed_item(db, url="https://c.example/lo", title="Low",
+                   normalized_score=2.0, age_hours=1)
+        _seed_item(db, url="https://c.example/hi", title="High",
+                   normalized_score=8.0, age_hours=1)
+
+        items = get_unfiltered_items(db, since=_since(48), limit=10)
+
+        assert [i["title"] for i in items] == ["High", "Low"]
+
+    def test_respects_limit(self, db):
+        for n in range(5):
+            _seed_item(db, url=f"https://d.example/{n}", title=f"Item {n}",
+                       normalized_score=float(n), age_hours=1)
+
+        items = get_unfiltered_items(db, since=_since(48), limit=2)
+
+        assert [i["title"] for i in items] == ["Item 4", "Item 3"]
+
+    def test_returns_empty_when_everything_is_filtered(self, db):
+        _seed_item(db, url="https://e.example/1", title="Done",
+                   age_hours=1, analysis_type="filter")
+
+        assert get_unfiltered_items(db, since=_since(48), limit=10) == []

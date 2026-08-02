@@ -293,11 +293,14 @@ class TestRelevanceFilter:
         # Only 2 items pass (index 2 is not novel)
         assert result.data["analyzed_count"] == 2
 
-        # Verify item_analysis was written
+        # All 3 verdicts are recorded, including the rejection — selection skips
+        # any item with a filter row, so a rejected item without one would be
+        # re-sent to the LLM on the next run.
         with db.connect() as conn:
             analyses = conn.execute("SELECT * FROM item_analysis").fetchall()
-        assert len(analyses) == 2
+        assert len(analyses) == 3
         assert all(a["analysis_type"] == "filter" for a in analyses)
+        assert sum(json.loads(a["content"])["novel"] for a in analyses) == 2
 
     @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
     def test_filter_creates_topics(self, mock_llm, db, event_bus):
@@ -361,7 +364,15 @@ class TestRelevanceFilter:
         assert len(received) == 1
         assert received[0]["analyzed_count"] == 1
 
-    def test_filter_fallback_on_llm_failure(self, db, event_bus):
+    def test_filter_writes_nothing_when_the_llm_fails(self, db, event_bus):
+        """No fabricated verdicts on failure.
+
+        The old fallback invented `novel=True, interest_score=5, summary=title`
+        for the whole pool. That was survivable only because the next run
+        overwrote it; now that each item is filtered exactly once it would burn
+        30 items permanently. The agent is re-enqueued after every scout
+        (main.py `scores_updated`), so doing nothing self-heals in minutes.
+        """
         from agents.analysts.filter import RelevanceFilter
 
         _seed_items(db, count=3)
@@ -372,18 +383,165 @@ class TestRelevanceFilter:
         )
 
         filt = RelevanceFilter()
-        # Patch _run_llm_filter to raise an exception
         with patch.object(filt, "_run_llm_filter", side_effect=RuntimeError("LLM down")):
             result = filt.execute(ctx)
 
-        assert result.success is True
-        # Fallback should still analyze items
-        assert result.data["analyzed_count"] > 0
+        assert result.success is False
 
-        # Verify fallback items stored in DB
         with db.connect() as conn:
             analyses = conn.execute("SELECT * FROM item_analysis").fetchall()
-        assert len(analyses) > 0
+        assert analyses == []
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_filter_skips_items_already_filtered(self, mock_llm, db, event_bus):
+        """~9.4 redundant analyses per item in production, one item 1,191 times."""
+        from agents.analysts.filter import RelevanceFilter
+
+        ids = _seed_items(db, count=2)
+        with db.connect() as conn:
+            conn.execute(
+                "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+                "VALUES (?, 'filter', datetime('now'), '{}')",
+                (ids[0],),
+            )
+            conn.commit()
+
+        mock_llm.return_value = [
+            {"index": 0, "novel": True, "ai_relevant": True, "category": "tool",
+             "interest_score": 7, "summary": "Only the unfiltered one", "deep_dive": False},
+        ]
+
+        ctx = AgentContext(db=db, event_bus=event_bus, config={"scoring": {}})
+        RelevanceFilter().execute(ctx)
+
+        sent = mock_llm.call_args[0][0]
+        assert [i["id"] for i in sent] == [ids[1]]
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_filter_skips_items_older_than_the_window(self, mock_llm, db, event_bus):
+        """A stale item's normalized_score is frozen by the scorer's own 48h
+        bound, so a high scorer would otherwise be re-picked forever."""
+        from agents.analysts.filter import RelevanceFilter
+
+        from datetime import datetime, timedelta, timezone
+
+        ids = _seed_items(db, count=2)
+        old = (datetime.now(timezone.utc) - timedelta(hours=72)).isoformat()
+        with db.connect() as conn:
+            conn.execute("UPDATE items SET last_seen=?, normalized_score=999 WHERE id=?",
+                         (old, ids[0]))
+            conn.commit()
+
+        mock_llm.return_value = [
+            {"index": 0, "novel": True, "ai_relevant": True, "category": "tool",
+             "interest_score": 7, "summary": "Fresh one", "deep_dive": False},
+        ]
+
+        ctx = AgentContext(db=db, event_bus=event_bus, config={"scoring": {}})
+        RelevanceFilter().execute(ctx)
+
+        sent = mock_llm.call_args[0][0]
+        assert [i["id"] for i in sent] == [ids[1]]
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_rejected_items_are_recorded_so_they_are_not_re_sent(
+        self, mock_llm, db, event_bus
+    ):
+        """A 'not novel' verdict is still a verdict.
+
+        Selection excludes items that have any filter row, so skipping the write
+        for rejected items would put them back in the pool on the very next run
+        and re-send them to the LLM for the rest of the 48h window — the exact
+        waste this change removes.
+        """
+        from agents.analysts.filter import RelevanceFilter
+
+        ids = _seed_items(db, count=1)
+        mock_llm.return_value = [
+            {"index": 0, "novel": False, "ai_relevant": True, "category": "tool",
+             "interest_score": 2, "summary": "Seen it before", "deep_dive": False},
+        ]
+
+        ctx = AgentContext(db=db, event_bus=event_bus, config={"scoring": {}})
+        RelevanceFilter().execute(ctx)
+
+        with db.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM item_analysis WHERE item_id=? AND analysis_type='filter'",
+                (ids[0],),
+            ).fetchall()
+        assert len(rows) == 1
+        assert json.loads(rows[0]["content"])["novel"] is False
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_rejected_items_are_not_promoted_or_given_topics(
+        self, mock_llm, db, event_bus
+    ):
+        """Recording the verdict must not leak junk into the dashboard or digest."""
+        from agents.analysts.filter import RelevanceFilter
+
+        ids = _seed_items(db, count=1)
+        mock_llm.return_value = [
+            {"index": 0, "novel": True, "ai_relevant": False, "category": "spam",
+             "interest_score": 1, "summary": "Not AI", "deep_dive": True},
+        ]
+
+        ctx = AgentContext(db=db, event_bus=event_bus, config={"scoring": {}})
+        result = RelevanceFilter().execute(ctx)
+
+        with db.connect() as conn:
+            status = conn.execute("SELECT status FROM items WHERE id=?",
+                                  (ids[0],)).fetchone()["status"]
+            topics = conn.execute("SELECT * FROM item_topics").fetchall()
+            tasks = conn.execute("SELECT * FROM task_queue").fetchall()
+
+        assert status == "new"
+        assert topics == []
+        assert tasks == []
+        assert result.data["analyzed_count"] == 0
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_rejected_items_stay_out_of_the_next_candidate_pool(
+        self, mock_llm, db, event_bus
+    ):
+        """End-to-end: two consecutive runs, nothing re-sent."""
+        from agents.analysts.filter import RelevanceFilter
+
+        _seed_items(db, count=1)
+        mock_llm.return_value = [
+            {"index": 0, "novel": False, "ai_relevant": False, "category": "spam",
+             "interest_score": 1, "summary": "Junk", "deep_dive": False},
+        ]
+
+        ctx = AgentContext(db=db, event_bus=event_bus, config={"scoring": {}})
+        RelevanceFilter().execute(ctx)
+        assert mock_llm.call_count == 1
+
+        RelevanceFilter().execute(ctx)
+        assert mock_llm.call_count == 1
+
+    @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
+    def test_is_a_noop_when_every_candidate_is_filtered(
+        self, mock_llm, db, event_bus
+    ):
+        """The common case once the backlog drains: must not call the LLM."""
+        from agents.analysts.filter import RelevanceFilter
+
+        ids = _seed_items(db, count=2)
+        with db.connect() as conn:
+            for item_id in ids:
+                conn.execute(
+                    "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+                    "VALUES (?, 'filter', datetime('now'), '{}')",
+                    (item_id,),
+                )
+            conn.commit()
+
+        ctx = AgentContext(db=db, event_bus=event_bus, config={"scoring": {}})
+        result = RelevanceFilter().execute(ctx)
+
+        assert result.success is True
+        mock_llm.assert_not_called()
 
     @patch("agents.analysts.filter.RelevanceFilter._run_llm_filter")
     def test_filter_no_items(self, mock_llm, db, event_bus):

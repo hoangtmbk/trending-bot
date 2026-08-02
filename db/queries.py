@@ -181,6 +181,44 @@ def get_items(
     return [dict(row) for row in rows]
 
 
+def get_unfiltered_items(
+    db: Database,
+    since: str,
+    limit: int,
+) -> list[dict]:
+    """Top items by `normalized_score` that have never had a 'filter' analysis.
+
+    This is the relevance filter's candidate pool. Both bounds are load-bearing
+    and removing either silently restores a production bug:
+
+    `since` (on `last_seen`) keeps the filter's working set identical to the
+    scorer's, which only rescores items seen in the last 48h
+    (`agents/analysts/scorer.py`). Outside that window `normalized_score` is
+    frozen at its last-fresh value rather than decaying, so an old item with a
+    high score would sit in the top N forever and be picked on every run.
+
+    `NOT EXISTS` makes selection idempotent. The filter's verdict — novel,
+    ai_relevant, category, interest_score, summary — judges content, and content
+    does not change; only momentum does, which is the scorer's job. Re-running it
+    produced ~9.4 rows per item in production, one item 1,191 times. Excluding at
+    *selection* time rather than skipping the INSERT is what avoids the ~100s
+    Claude CLI call, not merely the write.
+    """
+    query = """
+        SELECT i.* FROM items i
+        WHERE i.last_seen >= ?
+          AND NOT EXISTS (
+              SELECT 1 FROM item_analysis ia
+              WHERE ia.item_id = i.id AND ia.analysis_type = 'filter'
+          )
+        ORDER BY i.normalized_score DESC
+        LIMIT ?
+    """
+    with db.connect() as conn:
+        rows = conn.execute(query, (since, limit)).fetchall()
+    return [dict(row) for row in rows]
+
+
 # -- Score History --
 
 def snapshot_score(

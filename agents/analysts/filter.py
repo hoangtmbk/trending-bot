@@ -1,10 +1,16 @@
 from __future__ import annotations
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from agents.base import BaseAgent, AgentContext, AgentResult
-from db.queries import get_items, enqueue_task
+from db.queries import get_unfiltered_items, enqueue_task
 
 logger = logging.getLogger(__name__)
+
+# Candidate window, matching the scorer's own 48h bound
+# (`agents/analysts/scorer.py`). Beyond it `normalized_score` is frozen rather
+# than decayed, so ranking a wider pool by it would be meaningless.
+FILTER_WINDOW_HOURS = 48
 
 
 class RelevanceFilter(BaseAgent):
@@ -13,25 +19,29 @@ class RelevanceFilter(BaseAgent):
 
     def execute(self, ctx: AgentContext) -> AgentResult:
         scoring_cfg = ctx.config.get("scoring", {})
-        digest_size = scoring_cfg.get("digest_size", 15)
         top_count = scoring_cfg.get("filter_pool_size", 30)
         deep_dive_cap = scoring_cfg.get("deep_dive_count", 5)
 
-        # Get top items by normalized_score
-        items = get_items(ctx.db, limit=top_count, order_by="normalized_score DESC")
+        # Recent items that have never been filtered. Each item gets exactly one
+        # verdict for its lifetime — the filter judges content, which does not
+        # change, so re-running it only burns ~100s Claude CLI calls. See
+        # `get_unfiltered_items` for why both bounds matter.
+        since = (datetime.now(timezone.utc)
+                 - timedelta(hours=FILTER_WINDOW_HOURS)).isoformat()
+        items = get_unfiltered_items(ctx.db, since=since, limit=top_count)
 
         if not items:
+            # The steady state once the backlog drains, not an anomaly.
             return AgentResult(success=True, message="No items to filter")
 
         try:
             results = self._run_llm_filter(items)
         except Exception as e:
-            logger.error(f"LLM filter failed: {e}")
-            # Fallback: keep top items as-is
-            results = [{"index": i, "novel": True, "ai_relevant": True,
-                        "category": "unknown", "interest_score": 5,
-                        "summary": item["title"], "deep_dive": i < 5}
-                       for i, item in enumerate(items[:digest_size])]
+            # Deliberately no fallback verdict. Filtering is once-per-item, so a
+            # fabricated verdict would be permanent; the scorer re-enqueues this
+            # agent after every scout, so a transient failure self-heals.
+            logger.error(f"LLM filter failed, leaving {len(items)} items unfiltered: {e}")
+            return AgentResult(success=False, message=f"LLM filter failed: {e}")
 
         # Store analysis results and assign topics
         analyzed = 0
@@ -41,35 +51,44 @@ class RelevanceFilter(BaseAgent):
             if idx < 0 or idx >= len(items):
                 continue
 
-            if not eval_item.get("novel", False) or not eval_item.get("ai_relevant", False):
-                continue
-
             db_item = items[idx]
-            # Store filter analysis
+            passed = (eval_item.get("novel", False)
+                      and eval_item.get("ai_relevant", False))
+
             with ctx.db.connect() as conn:
+                # Written for rejected items too. "Not novel" is a verdict, and
+                # selection skips any item that has one — without this row the
+                # item returns to the pool on the next run and is re-sent to the
+                # LLM for the rest of the window. Readers are unaffected:
+                # get_items_with_filter gates on novel AND ai_relevant, and the
+                # digest gates on status='tracking', which stays 'new' below.
                 conn.execute(
                     "INSERT INTO item_analysis (item_id, analysis_type, created_at, content, prompt_version) "
                     "VALUES (?, 'filter', datetime('now'), ?, 'v1')",
                     (db_item["id"], json.dumps(eval_item)),
                 )
 
-                # Create/find topic and assign
-                category = eval_item.get("category", "unknown")
-                conn.execute(
-                    "INSERT OR IGNORE INTO topics (name, created_at) VALUES (?, datetime('now'))",
-                    (category,),
-                )
-                topic = conn.execute("SELECT id FROM topics WHERE name=?", (category,)).fetchone()
-                if topic:
+                if passed:
+                    # Create/find topic and assign
+                    category = eval_item.get("category", "unknown")
                     conn.execute(
-                        "INSERT OR REPLACE INTO item_topics (item_id, topic_id, confidence) VALUES (?, ?, ?)",
-                        (db_item["id"], topic["id"], eval_item.get("interest_score", 5) / 10.0),
+                        "INSERT OR IGNORE INTO topics (name, created_at) VALUES (?, datetime('now'))",
+                        (category,),
                     )
-                conn.execute(
-                    "UPDATE items SET status='tracking' WHERE id=? AND status='new'",
-                    (db_item["id"],),
-                )
+                    topic = conn.execute("SELECT id FROM topics WHERE name=?", (category,)).fetchone()
+                    if topic:
+                        conn.execute(
+                            "INSERT OR REPLACE INTO item_topics (item_id, topic_id, confidence) VALUES (?, ?, ?)",
+                            (db_item["id"], topic["id"], eval_item.get("interest_score", 5) / 10.0),
+                        )
+                    conn.execute(
+                        "UPDATE items SET status='tracking' WHERE id=? AND status='new'",
+                        (db_item["id"],),
+                    )
                 conn.commit()
+
+            if not passed:
+                continue
             analyzed += 1
 
             if eval_item.get("deep_dive"):
