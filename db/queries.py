@@ -69,28 +69,51 @@ _ALLOWED_ORDER_COLUMNS = {
 _ALLOWED_DIRECTIONS = {"ASC", "DESC"}
 
 
+DEFAULT_RANK_HALF_LIFE_HOURS = 72.0
+
+
 def get_items_with_filter(
     db: Database,
-    limit: int = 30,
+    limit: int | None = 30,
     min_interest: int = 6,
     source: str | None = None,
+    half_life_hours: float = DEFAULT_RANK_HALF_LIFE_HOURS,
 ) -> list[dict]:
     """Return items that have a recent filter verdict, joined with that verdict.
 
     Gates on `novel=true AND ai_relevant=true AND interest_score >= min_interest`.
-    Order: interest_score DESC, normalized_score DESC. Each row includes
-    `llm_summary`, `interest_score`, `category` from the latest filter analysis.
+    Order: `rank_score` DESC, which is `interest_score` decayed by the item's age —
+    `interest_score / (1 + age_hours / half_life_hours)`, so a verdict is worth half
+    its face value after one half-life. `normalized_score` breaks remaining ties.
+    Each row includes `llm_summary`, `interest_score`, `category` from the latest
+    filter analysis, plus the computed `rank_score`.
 
-    Why: the bare `items` table is ordered by `normalized_score` which is just a
-    per-source percentile rank — top items are often low-signal ("lol", "Hollywood is
-    so screwed"). The filter agent already stores LLM verdicts in `item_analysis`;
-    this query surfaces them.
+    Pass `limit=None` to return every eligible item (the dashboard browses the
+    full list).
+
+    Why the decay: `interest_score` is a coarse 1-10 integer, so ranking on it
+    alone pins the handful of all-time 10s to the top of the dashboard forever —
+    three May/June items held slots 1-3 for over two months while same-day 9s sat
+    below them. `normalized_score` can't rescue this as a tiebreaker: the scorer
+    only rescores items seen in the last 48h (`agents/analysts/scorer.py`), so a
+    stale item's score is frozen at whatever it was when it was last fresh rather
+    than decaying away.
+
+    Why gate on the filter at all: the bare `items` table is ordered by
+    `normalized_score` which is just a per-source percentile rank — top items are
+    often low-signal ("lol", "Hollywood is so screwed"). The filter agent already
+    stores LLM verdicts in `item_analysis`; this query surfaces them.
     """
     query = """
         SELECT i.*,
                json_extract(ia.content, '$.summary')        AS llm_summary,
                CAST(json_extract(ia.content, '$.interest_score') AS INTEGER) AS interest_score,
-               json_extract(ia.content, '$.category')       AS category
+               json_extract(ia.content, '$.category')       AS category,
+               COALESCE(
+                   CAST(json_extract(ia.content, '$.interest_score') AS REAL)
+                   / (1.0 + MAX(julianday('now') - julianday(i.last_seen), 0.0) * 24.0 / ?),
+                   0.0
+               ) AS rank_score
         FROM items i
         JOIN (
             SELECT item_id, MAX(created_at) AS max_created
@@ -106,12 +129,14 @@ def get_items_with_filter(
           AND json_extract(ia.content, '$.ai_relevant') = 1
           AND CAST(json_extract(ia.content, '$.interest_score') AS INTEGER) >= ?
     """
-    params: list = [min_interest]
+    params: list = [half_life_hours, min_interest]
     if source:
         query += " AND i.source = ?"
         params.append(source)
-    query += " ORDER BY interest_score DESC, i.normalized_score DESC LIMIT ?"
-    params.append(limit)
+    query += " ORDER BY rank_score DESC, i.normalized_score DESC"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
 
     with db.connect() as conn:
         rows = conn.execute(query, params).fetchall()

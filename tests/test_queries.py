@@ -8,6 +8,7 @@ from db.queries import (
     get_item_by_url,
     get_item_by_id,
     get_items,
+    get_items_with_filter,
     snapshot_score,
     get_score_history,
     enqueue_task,
@@ -357,3 +358,97 @@ class TestBulkUpdateScores:
 def _import_bulk_update_scores_symbol_present():
     # Regression: scorer imports bulk_update_scores from db.queries.
     from db.queries import bulk_update_scores  # noqa: F401
+
+
+# ── get_items_with_filter: recency-blended ranking + unbounded listing ──
+
+def _seed_filtered_item(db, *, url, title, interest_score, age_days=0.0,
+                        normalized_score=10.0, source="hackernews"):
+    """Insert an item with a filter verdict, backdating last_seen by age_days."""
+    item_id = upsert_item(db, url=url, title=title, source=source,
+                          description="", raw_metrics={},
+                          normalized_score=normalized_score)
+    seen = (datetime.now(timezone.utc) - timedelta(days=age_days)).isoformat()
+    with db.connect() as conn:
+        conn.execute("UPDATE items SET first_seen=?, last_seen=? WHERE id=?",
+                     (seen, seen, item_id))
+        conn.execute(
+            "INSERT INTO item_analysis (item_id, analysis_type, created_at, content) "
+            "VALUES (?, 'filter', ?, ?)",
+            (item_id, seen, json.dumps({
+                "novel": True, "ai_relevant": True,
+                "interest_score": interest_score,
+                "summary": f"Summary for {title}", "category": "model",
+            })),
+        )
+        conn.commit()
+    return item_id
+
+
+class TestGetItemsWithFilterRecency:
+    def test_fresh_item_outranks_older_item_with_higher_interest_score(self, db):
+        """A 60-day-old 10/10 must not outrank a same-day 9/10.
+
+        This is the dashboard staleness bug: interest_score is a coarse 1-10
+        integer, so without decay the handful of all-time 10s pin the top of
+        the list forever.
+        """
+        _seed_filtered_item(db, url="https://old.example/erdos", title="Old Ten",
+                            interest_score=10, age_days=60)
+        _seed_filtered_item(db, url="https://new.example/today", title="Fresh Nine",
+                            interest_score=9, age_days=0)
+
+        items = get_items_with_filter(db, limit=10, min_interest=6)
+
+        assert [i["title"] for i in items] == ["Fresh Nine", "Old Ten"]
+
+    def test_equal_interest_scores_order_by_recency(self, db):
+        _seed_filtered_item(db, url="https://a.example/1", title="Older",
+                            interest_score=8, age_days=10)
+        _seed_filtered_item(db, url="https://b.example/2", title="Newer",
+                            interest_score=8, age_days=1)
+
+        items = get_items_with_filter(db, limit=10, min_interest=6)
+
+        assert [i["title"] for i in items] == ["Newer", "Older"]
+
+    def test_interest_score_still_leads_among_equally_fresh_items(self, db):
+        """Decay must not swamp quality: same-day items rank by interest_score."""
+        _seed_filtered_item(db, url="https://c.example/1", title="Good",
+                            interest_score=7, age_days=0)
+        _seed_filtered_item(db, url="https://d.example/2", title="Great",
+                            interest_score=9, age_days=0)
+
+        items = get_items_with_filter(db, limit=10, min_interest=6)
+
+        assert [i["title"] for i in items] == ["Great", "Good"]
+
+    def test_rank_score_is_exposed_to_callers(self, db):
+        _seed_filtered_item(db, url="https://e.example/1", title="Only",
+                            interest_score=8, age_days=0)
+
+        items = get_items_with_filter(db, limit=10, min_interest=6)
+
+        # Fresh item: rank_score ≈ interest_score (no decay applied yet).
+        assert items[0]["rank_score"] == pytest.approx(8.0, abs=0.1)
+
+
+class TestGetItemsWithFilterUnbounded:
+    def test_limit_none_returns_every_eligible_item(self, db):
+        for n in range(45):
+            _seed_filtered_item(db, url=f"https://bulk.example/{n}",
+                                title=f"Item {n}", interest_score=7, age_days=n)
+
+        items = get_items_with_filter(db, limit=None, min_interest=6)
+
+        assert len(items) == 45
+
+    def test_limit_none_still_applies_the_min_interest_gate(self, db):
+        _seed_filtered_item(db, url="https://f.example/keep", title="Keep",
+                            interest_score=8, age_days=0)
+        _seed_filtered_item(db, url="https://f.example/drop", title="Drop",
+                            interest_score=3, age_days=0)
+
+        items = get_items_with_filter(db, limit=None, min_interest=6)
+
+        assert [i["title"] for i in items] == ["Keep"]
