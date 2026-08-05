@@ -132,6 +132,23 @@ class TestDeepDiver:
         assert received[0]["item_id"] == item_id
         assert received[0]["type"] == "deep_dive"
 
+    @patch("claude_cli.call_claude_json")
+    @patch("agents.researchers.deep_diver.DeepDiver._gather_material")
+    def test_deep_dive_allows_more_than_the_default_300s(self, mock_gather, mock_claude,
+                                                         db, event_bus):
+        """Deep dives run 162s at p50 and their tail ran past the old 300s cap,
+        which killed ~13% of them at exactly 300s and discarded the work."""
+        from agents.researchers.deep_diver import DeepDiver
+
+        item_id = _seed_item(db)
+        mock_gather.return_value = "### README\nSome readme content"
+        mock_claude.return_value = {"what_it_is": "A framework", "why_trending": "Buzz"}
+
+        ctx = AgentContext(db=db, event_bus=event_bus, config={}, payload={"item_id": item_id})
+        DeepDiver().execute(ctx)
+
+        assert mock_claude.call_args.kwargs["timeout"] == 600
+
     def test_deep_dive_no_item_id(self, db, event_bus):
         from agents.researchers.deep_diver import DeepDiver
 

@@ -120,3 +120,36 @@ def test_call_claude_json_raises_after_exhausting_retries_on_unparseable():
     with patch("claude_cli.subprocess.run", return_value=bad):
         with pytest.raises((RuntimeError, ValueError)):
             call_claude_json("Test", retries=2)
+
+
+def test_call_claude_defaults_to_a_300s_subprocess_timeout():
+    """The default cap stays 300s so the filter and summary call sites are unchanged."""
+    good = MagicMock(returncode=0, stdout="hello", stderr="")
+    with patch("claude_cli.subprocess.run", return_value=good) as mock_run:
+        call_claude("Test")
+        assert mock_run.call_args.kwargs["timeout"] == 300
+
+
+def test_call_claude_passes_an_explicit_timeout_to_the_subprocess():
+    """Deep dives outrun the 300s default, so the cap has to be per-call."""
+    good = MagicMock(returncode=0, stdout="hello", stderr="")
+    with patch("claude_cli.subprocess.run", return_value=good) as mock_run:
+        call_claude("Test", timeout=600)
+        assert mock_run.call_args.kwargs["timeout"] == 600
+
+
+def test_call_claude_json_forwards_its_timeout_to_the_subprocess():
+    good = MagicMock(returncode=0, stdout='{"ok": true}', stderr="")
+    with patch("claude_cli.subprocess.run", return_value=good) as mock_run:
+        call_claude_json("Test", timeout=600)
+        assert mock_run.call_args.kwargs["timeout"] == 600
+
+
+def test_call_claude_applies_the_timeout_to_every_retry():
+    """A retry must not silently fall back to the default cap."""
+    empty = MagicMock(returncode=0, stdout="", stderr="")
+    good = MagicMock(returncode=0, stdout="hello", stderr="")
+    with patch("claude_cli.subprocess.run", side_effect=[empty, good]) as mock_run:
+        call_claude("Test", retries=2, timeout=600)
+        assert mock_run.call_count == 2
+        assert [c.kwargs["timeout"] for c in mock_run.call_args_list] == [600, 600]

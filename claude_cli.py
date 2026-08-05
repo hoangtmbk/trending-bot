@@ -14,7 +14,17 @@ def call_claude(
     retries: int = 2,
     model: str | None = None,
     allowed_tools: list[str] | None = None,
+    timeout: int = 300,
 ) -> str:
+    """Run `claude -p` and return stdout.
+
+    `timeout` caps each individual attempt, not the call as a whole. It is
+    per-call because the three touchpoints have very different runtimes: the
+    filter finishes in ~110s, while a deep dive with WebSearch/WebFetch runs
+    162s at p50 and has a live tail past 300s. Note that a timeout is *not*
+    retried — `subprocess.run` raises `TimeoutExpired`, which is not caught
+    below and propagates to the caller.
+    """
     cmd = ["claude", "-p", prompt]
     if model:
         cmd.extend(["--model", model])
@@ -27,7 +37,7 @@ def call_claude(
     last_stderr = ""
     for attempt in range(retries):
         logger.info(f"Claude CLI call attempt {attempt + 1}/{retries}")
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         last_rc = result.returncode
         last_stdout = result.stdout.strip()
         last_stderr = result.stderr.strip()
@@ -88,10 +98,13 @@ def call_claude_json(
     retries: int = 2,
     model: str | None = None,
     allowed_tools: list[str] | None = None,
+    timeout: int = 300,
 ) -> dict:
     last_err: Exception | None = None
     for attempt in range(retries):
-        raw = call_claude(prompt, retries=1, model=model, allowed_tools=allowed_tools)
+        raw = call_claude(
+            prompt, retries=1, model=model, allowed_tools=allowed_tools, timeout=timeout
+        )
         try:
             return _extract_json(raw)
         except (json.JSONDecodeError, ValueError) as e:

@@ -68,6 +68,13 @@ class DeepDiver(BaseAgent):
             result = call_claude_json(
                 prompt,
                 allowed_tools=["WebSearch", "WebFetch"],
+                # Deep dives are the long pole: 162s at p50, 296s at p99 of the
+                # runs that *finished*. The old shared 300s cap sat inside that
+                # distribution rather than beyond it, so it truncated the tail —
+                # 194 of 218 historical failures were this timeout firing at
+                # exactly 300s, discarding ~300s of work each time. The cap is
+                # raised here only; other call sites keep the 300s default.
+                timeout=600,
             )
         except Exception as e:
             return AgentResult(success=False, message=f"Claude CLI failed: {e}")
