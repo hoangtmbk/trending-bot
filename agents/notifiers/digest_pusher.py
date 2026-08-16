@@ -19,7 +19,7 @@ class DigestPusher(BaseAgent):
     """
 
     name = "digest_pusher"
-    schedule = "0 8,20 * * *"  # 08:00 + 20:00 UTC
+    schedule = "0 8,20 * * *"  # 08:00 + 20:00 container-local (TZ=Asia/Bangkok, UTC+7)
 
     def execute(self, ctx: AgentContext) -> AgentResult:
         delivery_cfg = ctx.config.get("delivery", {}).get("telegram", {})

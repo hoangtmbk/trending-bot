@@ -32,7 +32,6 @@ class AgentResult:
 class BaseAgent(ABC):
     name: str = ""
     schedule: str = "on_demand"
-    timeout: int = 300
 
     def __init__(self):
         if not self.name:
