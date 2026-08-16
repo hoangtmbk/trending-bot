@@ -25,6 +25,7 @@ from config import load_config, get_env
 from db.database import Database
 from db.queries import enqueue_task
 from orchestrator.app import Application
+from interfaces.telegram.supervisor import BotStatus, supervise
 
 # Agents
 from agents.scouts.github_scout import GitHubScout
@@ -145,12 +146,14 @@ def _wire_events(app: Application) -> None:
     app.on_event("scores_updated", _on_scores_updated)
 
 
-def _start_web(db: Database, config: dict, port: int) -> threading.Thread:
+def _start_web(
+    db: Database, config: dict, port: int, bot_status: BotStatus | None = None
+) -> threading.Thread:
     """Start FastAPI web dashboard in a daemon thread."""
     from interfaces.web.app import create_app
     import uvicorn
 
-    fastapi_app = create_app(db, config)
+    fastapi_app = create_app(db, config, bot_status=bot_status)
 
     def _run():
         uvicorn.run(fastapi_app, host="0.0.0.0", port=port, log_level="warning")
@@ -161,18 +164,23 @@ def _start_web(db: Database, config: dict, port: int) -> threading.Thread:
     return t
 
 
-async def _run_telegram_polling(tg_app) -> None:
+async def _run_telegram_polling(tg_app, status: BotStatus) -> None:
     """Run telegram polling without signal handlers (safe for non-main threads)."""
     async with tg_app:
         await tg_app.start()
         await tg_app.updater.start_polling()
+        # Polling is up and python-telegram-bot handles its own retries
+        # from here; only the startup path above is fragile.
+        status.mark_running()
         # Block until the thread is interrupted
         stop_event = asyncio.Event()
         await stop_event.wait()
 
 
-def _start_telegram(db: Database, config: dict) -> threading.Thread | None:
-    """Start Telegram bot in a daemon thread (if configured)."""
+def _start_telegram(
+    db: Database, config: dict, status: BotStatus
+) -> threading.Thread | None:
+    """Start Telegram bot in a supervised daemon thread (if configured)."""
     delivery_cfg = config.get("delivery", {}).get("telegram", {})
     if not delivery_cfg.get("enabled", False):
         logger.info("Telegram bot disabled in config")
@@ -186,16 +194,24 @@ def _start_telegram(db: Database, config: dict) -> threading.Thread | None:
 
     from interfaces.telegram.bot import create_bot
 
-    tg_app = create_bot(bot_token, db, config)
-
-    def _run():
+    def _attempt():
+        # Rebuild the Application every attempt. One whose initialize()
+        # failed partway through `async with` is left half-initialized, and
+        # reusing it is the kind of thing that works in testing and fails
+        # at 3am. Fresh object and fresh event loop each time.
+        tg_app = create_bot(bot_token, db, config)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_run_telegram_polling(tg_app))
+        try:
+            loop.run_until_complete(_run_telegram_polling(tg_app, status))
+        finally:
+            loop.close()
 
-    t = threading.Thread(target=_run, daemon=True, name="telegram-bot")
+    t = threading.Thread(
+        target=supervise, args=(_attempt, status), daemon=True, name="telegram-bot"
+    )
     t.start()
-    logger.info("Telegram bot started")
+    logger.info("Telegram bot thread started (supervised)")
     return t
 
 
@@ -254,14 +270,18 @@ def main() -> None:
     _register_all_agents(app)
     _wire_events(app)
 
+    # Shared between the telegram thread (writer) and /api/health (reader).
+    # Stays `disabled` when the bot is off, so health does not flag it.
+    bot_status = BotStatus()
+
     # Web dashboard
     if not args.no_web:
         port = args.port or config.get("delivery", {}).get("dashboard", {}).get("port", 8080)
-        _start_web(db, config, port)
+        _start_web(db, config, port, bot_status)
 
     # Telegram bot
     if not args.no_telegram:
-        _start_telegram(db, config)
+        _start_telegram(db, config, bot_status)
 
     # Immediate collection
     if args.run_now:

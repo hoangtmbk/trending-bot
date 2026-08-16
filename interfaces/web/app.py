@@ -5,10 +5,11 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from db.database import Database
+from interfaces.telegram.supervisor import BotStatus
 from db.queries import get_items, get_items_with_filter, get_item_by_id, get_score_history, enqueue_task
 from interfaces.web.export import render_item_markdown, render_bulk_markdown, slugify
 
@@ -85,10 +86,14 @@ def _adjust_topic_weights_for_item(db: Database, item_id: int, action: str) -> N
         conn.commit()
 
 
-def create_app(db: Database, config: dict) -> FastAPI:
+def create_app(db: Database, config: dict, bot_status: BotStatus | None = None) -> FastAPI:
     app = FastAPI(title="TrendBot", description="Personal AI Trends Assistant")
     app.state.db = db
     app.state.config = config
+    # Defaults to a disabled status so callers that don't run a bot — the
+    # test suite, mainly — need no change.
+    bot_status = bot_status or BotStatus()
+    app.state.bot_status = bot_status
 
     templates_dir = Path(__file__).parent / "templates"
     templates_dir.mkdir(exist_ok=True)
@@ -98,10 +103,19 @@ def create_app(db: Database, config: dict) -> FastAPI:
 
     @app.get("/api/health")
     async def api_health():
-        return {
-            "ok": True,
+        # Reports the bot's real state: this used to be a hardcoded
+        # {"ok": True}, so on 2026-08-15 the container went on calling
+        # itself healthy while the telegram thread was dead.
+        telegram = bot_status.snapshot()
+        degraded = bot_status.is_degraded()
+        body = {
+            "ok": not degraded,
             "version": os.environ.get("TRENDBOT_GIT_SHA", "dev"),
+            "telegram": telegram.as_dict(),
         }
+        if degraded:
+            return JSONResponse(status_code=503, content=body)
+        return body
 
     @app.get("/api/items")
     async def api_items(
